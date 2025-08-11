@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 import openai
 import re
 import time
+from postgresql_adapter import PostgreSQLAdapter
 
 # Load OpenAI API key for embeddings
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -17,9 +18,10 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 def get_supabase_client() -> Client:
     """
     Get a Supabase client with the URL and key from environment variables.
+    If the URL is a PostgreSQL connection string, use PostgreSQL adapter instead.
     
     Returns:
-        Supabase client instance
+        Supabase client instance or PostgreSQL adapter
     """
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_SERVICE_KEY")
@@ -27,7 +29,13 @@ def get_supabase_client() -> Client:
     if not url or not key:
         raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in environment variables")
     
-    return create_client(url, key)
+    # Check if this is a PostgreSQL connection string
+    if url.startswith("postgresql://"):
+        # Use PostgreSQL adapter for self-contained setup
+        return PostgreSQLAdapter(url)
+    else:
+        # Use regular Supabase client
+        return create_client(url, key)
 
 def create_embeddings_batch(texts: List[str]) -> List[List[float]]:
     """
@@ -193,13 +201,13 @@ def add_documents_to_supabase(
     try:
         if unique_urls:
             # Use the .in_() filter to delete all records with matching URLs
-            client.table("crawled_pages").delete().in_("url", unique_urls).execute()
+            client.table("crawled_pages").delete().in_("url", unique_urls).execute(timeout=30)
     except Exception as e:
         print(f"Batch delete failed: {e}. Trying one-by-one deletion as fallback.")
         # Fallback: delete records one by one
         for url in unique_urls:
             try:
-                client.table("crawled_pages").delete().eq("url", url).execute()
+                client.table("crawled_pages").delete().eq("url", url).execute(timeout=30)
             except Exception as inner_e:
                 print(f"Error deleting record for URL {url}: {inner_e}")
                 # Continue with the next URL even if one fails
@@ -289,7 +297,7 @@ def add_documents_to_supabase(
         
         for retry in range(max_retries):
             try:
-                client.table("crawled_pages").insert(batch_data).execute()
+                client.table("crawled_pages").insert(batch_data).execute(timeout=60)
                 # Success - break out of retry loop
                 break
             except Exception as e:
@@ -306,7 +314,7 @@ def add_documents_to_supabase(
                     successful_inserts = 0
                     for record in batch_data:
                         try:
-                            client.table("crawled_pages").insert(record).execute()
+                            client.table("crawled_pages").insert(record).execute(timeout=30)
                             successful_inserts += 1
                         except Exception as individual_error:
                             print(f"Failed to insert individual record for URL {record['url']}: {individual_error}")
@@ -379,7 +387,7 @@ def search_documents(
         # Debug log the RPC parameters
         print(f"[DEBUG] RPC params keys: {params.keys()}")
         
-        result = client.rpc('match_crawled_pages', params).execute()
+        result = client.rpc('match_crawled_pages', params).execute(timeout=30)
         
         if timeout_event.is_set():
             raise TimeoutError("Vector search timed out")
@@ -584,7 +592,7 @@ def add_code_examples_to_supabase(
     unique_urls = list(set(urls))
     for url in unique_urls:
         try:
-            client.table('code_examples').delete().eq('url', url).execute()
+            client.table('code_examples').delete().eq('url', url).execute(timeout=30)
         except Exception as e:
             print(f"Error deleting existing code examples for {url}: {e}")
     
@@ -638,7 +646,7 @@ def add_code_examples_to_supabase(
         
         for retry in range(max_retries):
             try:
-                client.table('code_examples').insert(batch_data).execute()
+                client.table('code_examples').insert(batch_data).execute(timeout=60)
                 # Success - break out of retry loop
                 break
             except Exception as e:
@@ -655,7 +663,7 @@ def add_code_examples_to_supabase(
                     successful_inserts = 0
                     for record in batch_data:
                         try:
-                            client.table('code_examples').insert(record).execute()
+                            client.table('code_examples').insert(record).execute(timeout=30)
                             successful_inserts += 1
                         except Exception as individual_error:
                             print(f"Failed to insert individual record for URL {record['url']}: {individual_error}")
@@ -681,7 +689,7 @@ def update_source_info(client: Client, source_id: str, summary: str, word_count:
             'summary': summary,
             'total_word_count': word_count,
             'updated_at': 'now()'
-        }).eq('source_id', source_id).execute()
+        }).eq('source_id', source_id).execute(timeout=30)
         
         # If no rows were updated, insert new source
         if not result.data:
@@ -689,7 +697,7 @@ def update_source_info(client: Client, source_id: str, summary: str, word_count:
                 'source_id': source_id,
                 'summary': summary,
                 'total_word_count': word_count
-            }).execute()
+            }).execute(timeout=30)
             print(f"Created new source: {source_id}")
         else:
             print(f"Updated source: {source_id}")
@@ -822,7 +830,7 @@ def search_code_examples(
             params['source_filter'] = source_id  # Correct parameter name from SQL function
             print(f"[DEBUG] Using source_filter parameter: '{source_id}'")
         
-        result = client.rpc('match_code_examples', params).execute()
+        result = client.rpc('match_code_examples', params).execute(timeout=30)
         
         if timeout_event.is_set():
             raise TimeoutError("Code search timed out")

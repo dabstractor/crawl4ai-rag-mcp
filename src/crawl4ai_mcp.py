@@ -122,6 +122,7 @@ class Crawl4AIContext:
     reranking_model: Optional[CrossEncoder] = None
     knowledge_validator: Optional[Any] = None  # KnowledgeGraphValidator when available
     repo_extractor: Optional[Any] = None       # DirectNeo4jExtractor when available
+    initialized: bool = False                  # Track initialization status
 
 @asynccontextmanager
 async def crawl4ai_lifespan(server: FastMCP) -> AsyncIterator[Crawl4AIContext]:
@@ -134,6 +135,8 @@ async def crawl4ai_lifespan(server: FastMCP) -> AsyncIterator[Crawl4AIContext]:
     Yields:
         Crawl4AIContext: The context containing the Crawl4AI crawler and Supabase client
     """
+    print("Starting Crawl4AI MCP server initialization...")
+    
     # Create browser configuration
     browser_config = BrowserConfig(
         headless=True,
@@ -191,14 +194,20 @@ async def crawl4ai_lifespan(server: FastMCP) -> AsyncIterator[Crawl4AIContext]:
     else:
         print("Knowledge graph functionality disabled - set USE_KNOWLEDGE_GRAPH=true to enable")
     
+    # Create the context with initialization flag
+    context = Crawl4AIContext(
+        crawler=crawler,
+        supabase_client=supabase_client,
+        reranking_model=reranking_model,
+        knowledge_validator=knowledge_validator,
+        repo_extractor=repo_extractor,
+        initialized=True
+    )
+    
+    print("Crawl4AI MCP server initialization complete!")
+    
     try:
-        yield Crawl4AIContext(
-            crawler=crawler,
-            supabase_client=supabase_client,
-            reranking_model=reranking_model,
-            knowledge_validator=knowledge_validator,
-            repo_extractor=repo_extractor
-        )
+        yield context
     finally:
         # Clean up all components
         await crawler.__aexit__(None, None, None)
@@ -409,6 +418,13 @@ async def search(ctx: Context, query: str, return_raw_markdown: bool = False, nu
     Returns:
         JSON string with search results, or raw markdown of each URL if `return_raw_markdown=true`
     """
+    # Check if server is fully initialized
+    if not getattr(ctx.request_context.lifespan_context, 'initialized', False):
+        return json.dumps({
+            "success": False,
+            "error": "Server is still initializing. Please wait a moment and try again."
+        }, indent=2)
+    
     start_time = time.time()
     
     try:
@@ -698,6 +714,13 @@ async def scrape_urls(ctx: Context, url: Union[str, List[str]], max_concurrent: 
     Returns:
         Summary of the scraping operation and storage in Supabase, or raw markdown content if requested
     """
+    # Check if server is fully initialized
+    if not getattr(ctx.request_context.lifespan_context, 'initialized', False):
+        return json.dumps({
+            "success": False,
+            "error": "Server is still initializing. Please wait a moment and try again."
+        }, indent=2)
+    
     start_time = time.time()
     
     try:
@@ -1128,6 +1151,13 @@ async def smart_crawl_url(ctx: Context, url: str, max_depth: int = 3, max_concur
     Returns:
         JSON string with crawl summary, raw markdown (if requested), or RAG query results
     """
+    # Check if server is fully initialized
+    if not getattr(ctx.request_context.lifespan_context, 'initialized', False):
+        return json.dumps({
+            "success": False,
+            "error": "Server is still initializing. Please wait a moment and try again."
+        }, indent=2)
+    
     try:
         # Get the crawler from the context
         crawler = ctx.request_context.lifespan_context.crawler
@@ -1415,6 +1445,13 @@ async def get_available_sources(ctx: Context) -> str:
     Returns:
         JSON string with the list of available sources and their details
     """
+    # Check if server is fully initialized
+    if not getattr(ctx.request_context.lifespan_context, 'initialized', False):
+        return json.dumps({
+            "success": False,
+            "error": "Server is still initializing. Please wait a moment and try again."
+        }, indent=2)
+    
     try:
         # Get the Supabase client from the context
         supabase_client = ctx.request_context.lifespan_context.supabase_client
@@ -1465,6 +1502,13 @@ async def perform_rag_query(ctx: Context, query: str, source: str = None, match_
     Returns:
         JSON string with the search results
     """
+    # Check if server is fully initialized
+    if not getattr(ctx.request_context.lifespan_context, 'initialized', False):
+        return json.dumps({
+            "success": False,
+            "error": "Server is still initializing. Please wait a moment and try again."
+        }, indent=2)
+    
     import asyncio
     
     query_start_time = time.time()
@@ -1738,6 +1782,13 @@ async def search_code_examples(ctx: Context, query: str, source_id: str = None, 
     Returns:
         JSON string with the search results
     """
+    # Check if server is fully initialized
+    if not getattr(ctx.request_context.lifespan_context, 'initialized', False):
+        return json.dumps({
+            "success": False,
+            "error": "Server is still initializing. Please wait a moment and try again."
+        }, indent=2)
+    
     # Check if code example extraction is enabled
     extract_code_examples_enabled = os.getenv("USE_AGENTIC_RAG", "false") == "true"
     if not extract_code_examples_enabled:

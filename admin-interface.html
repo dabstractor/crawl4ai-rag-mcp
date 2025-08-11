@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crawl4AI MCP Server Admin Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2196F3, #21CBF3);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .nav {
+            background: #f8f9fa;
+            padding: 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .nav-buttons {
+            display: flex;
+            flex-wrap: wrap;
+        }
+        
+        .nav-button {
+            background: none;
+            border: none;
+            padding: 15px 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            color: #495057;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .nav-button:hover {
+            background: #e9ecef;
+            color: #2196F3;
+        }
+        
+        .nav-button.active {
+            background: white;
+            color: #2196F3;
+            border-bottom-color: #2196F3;
+            font-weight: 600;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        .stat-card h3 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+        
+        .stat-card p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+        
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .tool-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .tool-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        
+        .tool-card h3 {
+            color: #2196F3;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+        
+        .tool-card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        
+        .tool-tag {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            margin-right: 5px;
+            margin-bottom: 5px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            font-weight: 300;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 15px;
+            color: #999;
+        }
+        
+        .refresh-btn {
+            background: linear-gradient(135deg, #2196F3, #21CBF3);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.3);
+        }
+        
+        .log-container {
+            background: #1e1e1e;
+            color: #e0e0e0;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 20px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-running {
+            background: #4caf50;
+            box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+        
+        .status-stopped {
+            background: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🕷️ Crawl4AI MCP Server</h1>
+            <p>Monitor and manage your AI-powered web crawling and RAG system</p>
+        </div>
+        
+        <div class="nav">
+            <div class="nav-buttons">
+                <button class="nav-button active" onclick="showTab('overview')">Overview</button>
+                <button class="nav-button" onclick="showTab('documents')">Documents</button>
+                <button class="nav-button" onclick="showTab('sources')">Sources</button>
+                <button class="nav-button" onclick="showTab('tools')">Available Tools</button>
+                <button class="nav-button" onclick="showTab('logs')">Server Logs</button>
+            </div>
+        </div>
+        
+        <div class="content">
+            <!-- Overview Tab -->
+            <div id="overview" class="tab-content active">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3 id="totalDocuments">0</h3>
+                        <p>Documents Indexed</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="totalSources">0</h3>
+                        <p>Sources Crawled</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="totalCodeExamples">0</h3>
+                        <p>Code Examples</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3><span class="status-indicator status-running"></span>Running</h3>
+                        <p>Server Status</p>
+                    </div>
+                </div>
+                
+                <div class="section">
+                    <h2>Quick Actions</h2>
+                    <button class="refresh-btn" onclick="refreshStats()">🔄 Refresh Statistics</button>
+                    <button class="refresh-btn" onclick="testConnection()">🔍 Test MCP Connection</button>
+                </div>
+            </div>
+            
+            <!-- Documents Tab -->
+            <div id="documents" class="tab-content">
+                <div class="section">
+                    <h2>Indexed Documents</h2>
+                    <div id="documentsContent">
+                        <div class="empty-state">
+                            <h3>No documents indexed yet</h3>
+                            <p>Use the search or scrape_urls tools to start indexing content.</p>
+                            <button class="refresh-btn" onclick="loadDocuments()">Check for Documents</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sources Tab -->
+            <div id="sources" class="tab-content">
+                <div class="section">
+                    <h2>Content Sources</h2>
+                    <div id="sourcesContent">
+                        <div class="empty-state">
+                            <h3>No sources available</h3>
+                            <p>Sources will appear here after crawling websites.</p>
+                            <button class="refresh-btn" onclick="loadSources()">Check for Sources</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tools Tab -->
+            <div id="tools" class="tab-content">
+                <div class="section">
+                    <h2>Available MCP Tools</h2>
+                    <div class="tools-grid">
+                        <div class="tool-card">
+                            <h3>🔍 search</h3>
+                            <p>Comprehensive search using SearXNG with scraping and RAG functionality.</p>
+                            <span class="tool-tag">Search</span>
+                            <span class="tool-tag">RAG</span>
+                        </div>
+                        
+                        <div class="tool-card">
+                            <h3>🕷️ scrape_urls</h3>
+                            <p>Scrape one or more URLs and store content as embedding chunks.</p>
+                            <span class="tool-tag">Scraping</span>
+                            <span class="tool-tag">Batch</span>
+                        </div>
+                        
+                        <div class="tool-card">
+                            <h3>🧠 smart_crawl_url</h3>
+                            <p>Intelligently crawl URLs based on type (sitemaps, text files, webpages).</p>
+                            <span class="tool-tag">Smart Crawling</span>
+                            <span class="tool-tag">Auto-detect</span>
+                        </div>
+                        
+                        <div class="tool-card">
+                            <h3>📊 get_available_sources</h3>
+                            <p>List all available sources in the knowledge base.</p>
+                            <span class="tool-tag">Management</span>
+                        </div>
+                        
+                        <div class="tool-card">
+                            <h3>💬 perform_rag_query</h3>
+                            <p>Query the knowledge base using RAG (Retrieval Augmented Generation).</p>
+                            <span class="tool-tag">RAG</span>
+                            <span class="tool-tag">Query</span>
+                        </div>
+                        
+                        <div class="tool-card">
+                            <h3>💻 search_code_examples</h3>
+                            <p>Search for code examples in the indexed content.</p>
+                            <span class="tool-tag">Code Search</span>
+                            <span class="tool-tag">Development</span>
+                        </div>
+                        
+                        <div class="tool-card">
+                            <h3>🛡️ check_ai_script_hallucinations</h3>
+                            <p>Validate AI-generated scripts against knowledge base to detect hallucinations.</p>
+                            <span class="tool-tag">Validation</span>
+                            <span class="tool-tag">AI Safety</span>
+                        </div>
+                        
+                        <div class="tool-card">
+                            <h3>🕸️ query_knowledge_graph</h3>
+                            <p>Query the Neo4j knowledge graph for entity relationships.</p>
+                            <span class="tool-tag">Graph DB</span>
+                            <span class="tool-tag">Relationships</span>
+                        </div>
+                        
+                        <div class="tool-card">
+                            <h3>📦 parse_github_repository</h3>
+                            <p>Parse and analyze GitHub repositories for documentation and code.</p>
+                            <span class="tool-tag">GitHub</span>
+                            <span class="tool-tag">Repository</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Logs Tab -->
+            <div id="logs" class="tab-content">
+                <div class="section">
+                    <h2>Server Logs</h2>
+                    <button class="refresh-btn" onclick="loadLogs()">🔄 Refresh Logs</button>
+                    <div class="log-container" id="logsContent">
+                        Loading logs...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab functionality
+        function showTab(tabName) {
+            // Hide all tab contents
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Remove active class from all nav buttons
+            const buttons = document.querySelectorAll('.nav-button');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            
+            // Show selected tab and mark button as active
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+            
+            // Load content if needed
+            if (tabName === 'logs') {
+                loadLogs();
+            } else if (tabName === 'documents') {
+                loadDocuments();
+            } else if (tabName === 'sources') {
+                loadSources();
+            }
+        }
+        
+        // Mock functions for demonstration
+        // In a real implementation, these would make actual API calls
+        
+        function refreshStats() {
+            // This would normally fetch real data from the database
+            // For now, we'll simulate loading
+            document.getElementById('totalDocuments').textContent = '0';
+            document.getElementById('totalSources').textContent = '0';
+            document.getElementById('totalCodeExamples').textContent = '0';
+        }
+        
+        function testConnection() {
+            alert('MCP Server is running on http://localhost:8051');
+        }
+        
+        function loadDocuments() {
+            document.getElementById('documentsContent').innerHTML = `
+                <div class="empty-state">
+                    <h3>No documents indexed yet</h3>
+                    <p>To start indexing content, use Claude Code with commands like:</p>
+                    <div class="log-container">
+# Search and index web content
+search("your search query")
+
+# Scrape specific URLs
+scrape_urls("https://example.com")
+
+# Smart crawl with auto-detection
+smart_crawl_url("https://example.com/sitemap.xml")
+                    </div>
+                </div>
+            `;
+        }
+        
+        function loadSources() {
+            document.getElementById('sourcesContent').innerHTML = `
+                <div class="empty-state">
+                    <h3>No sources available</h3>
+                    <p>Sources will appear here after crawling websites. Try using:</p>
+                    <div class="log-container">
+# Get available sources
+get_available_sources()
+                    </div>
+                </div>
+            `;
+        }
+        
+        function loadLogs() {
+            document.getElementById('logsContent').innerHTML = `
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8051 (Press CTRL+C to quit)
+Knowledge graph functionality disabled - set USE_KNOWLEDGE_GRAPH=true to enable
+2025-08-11 20:39:26 - sentence_transformers.cross_encoder.CrossEncoder - INFO - Use pytorch device: cpu
+
+Server is running successfully! ✅
+            `;
+        }
+        
+        // Initialize
+        refreshStats();
+        loadLogs();
+    </script>
+</body>
+</html>

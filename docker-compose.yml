@@ -1,6 +1,35 @@
 version: "3.7"
 
 services:
+  # PostgreSQL Database with pgvector extension (replaces Supabase)
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: crawl4ai-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=crawl4ai_rag
+      - POSTGRES_USER=crawl4ai_user
+      - POSTGRES_PASSWORD=crawl4ai_secure_password_2024
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    ports:
+      - "127.0.0.1:54321:5432"  # Random port to avoid conflicts
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./crawled_pages.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    networks:
+      - crawl4ai-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U crawl4ai_user -d crawl4ai_rag"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "2m"
+        max-file: "3"
+
   # MCP Crawl4AI Server
   mcp-crawl4ai:
     build:
@@ -13,13 +42,20 @@ services:
       - HOST=${HOST:-0.0.0.0}
       - PORT=${PORT:-8051}
       - SEARXNG_URL=${SEARXNG_URL:-http://searxng:8080}
+      # Override Supabase settings to use local PostgreSQL
+      - SUPABASE_URL=postgresql://crawl4ai_user:crawl4ai_secure_password_2024@postgres:5432/crawl4ai_rag
+      - SUPABASE_SERVICE_KEY=dummy_key_for_local_postgres
     env_file:
       - .env
     ports:
       - "8051:8051"
     depends_on:
-      - searxng
+      postgres:
+        condition: service_healthy
+      searxng:
+        condition: service_started
     networks:
+      - crawl4ai-network
       - searxng
     volumes:
       - ./data:/app/data
@@ -27,8 +63,8 @@ services:
     logging:
       driver: "json-file"
       options:
-        max-size: "1m"
-        max-file: "1"
+        max-size: "2m"
+        max-file: "3"
 
   # Reverse Proxy (Caddy)
   caddy:
@@ -104,10 +140,13 @@ services:
       - valkey
 
 networks:
+  crawl4ai-network:
+    driver: bridge
   searxng:
     driver: bridge
 
 volumes:
+  postgres-data:
   caddy-data:
   caddy-config:
   valkey-data:
