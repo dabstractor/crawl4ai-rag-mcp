@@ -1,0 +1,135 @@
+# Task ID: 22
+# Title: Create API Documentation Markdown
+# Status: pending
+# Dependencies: 7, 8, 9, 10, 11
+# Priority: medium
+# Description: Create comprehensive markdown documentation for the HTTP API.
+# Details:
+Create markdown documentation that includes:
+1. Overview of the API and its purpose
+2. Authentication requirements (if any)
+3. Detailed endpoint documentation with examples
+4. Error handling and status codes
+5. Rate limiting and performance considerations
+
+Create a docs/api.md file with comprehensive documentation. Include curl examples for each endpoint. Example:
+```markdown
+# Crawl4AI MCP HTTP API Documentation
+
+## Overview
+This API provides HTTP access to the Crawl4AI MCP server functionality, enabling browser-based UI access.
+
+## Base URL
+`http://localhost:8051/api`
+
+## Authentication
+Currently, the API does not require authentication.
+
+## Endpoints
+
+### Health Check
+`GET /api/health`
+
+Checks the health and status of the MCP server.
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "uptime": 3600,
+  "mcp_tools_available": true
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8051/api/health
+```
+
+### Get Available Sources
+`GET /api/sources`
+
+Retrieves all available data sources from the crawl database.
+
+**Response:**
+```json
+{
+  "sources": [
+    {
+      "domain": "example.com",
+      "count": 150,
+      "last_updated": "2025-01-15T10:30:00Z",
+      "description": "Documentation site"
+    }
+  ]
+}
+```
+
+**Example:**
+```bash
+curl http://localhost:8051/api/sources
+```
+
+### Search Content
+`GET /api/search`
+
+Performs semantic search using RAG functionality.
+
+**Parameters:**
+- `query` (required): Search query string
+- `source` (optional): Filter by specific source domain
+- `match_count` (optional): Number of results to return (default: 10)
+
+**Response:**
+```json
+{
+  "results": [
+    {
+      "content": "Matching text content...",
+      "source": "example.com",
+      "score": 0.95,
+      "metadata": {
+        "url": "https://example.com/page",
+        "title": "Page Title"
+      }
+    }
+  ],
+  "query": "original search query",
+  "total_results": 5
+}
+```
+
+**Example:**
+```bash
+curl "http://localhost:8051/api/search?query=example&source=example.com&match_count=5"
+```
+
+## Error Handling
+
+The API returns standard HTTP status codes and a consistent error format:
+
+```json
+{
+  "error": {
+    "code": "ERROR_CODE",
+    "message": "Human readable error description",
+    "details": "Additional technical details if available"
+  }
+}
+```
+
+### Common Status Codes
+- 200: Successful operation
+- 400: Bad request (invalid parameters)
+- 404: Endpoint not found
+- 500: Internal server error
+- 503: Service unavailable (MCP tools not responding)
+
+## Rate Limiting
+
+The API is rate limited to 60 requests per minute per IP address. If you exceed this limit, you'll receive a 429 Too Many Requests response with a Retry-After header.
+```
+
+# Test Strategy:
+Review the documentation for accuracy and completeness. Verify that all endpoints are documented with correct parameters and response formats. Test the curl examples to ensure they work correctly. Have team members review the documentation for clarity and usability.

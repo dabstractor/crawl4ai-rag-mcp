@@ -1,0 +1,60 @@
+# Task ID: 10
+# Title: Implement Code Examples Endpoint
+# Status: pending
+# Dependencies: 5, 6
+# Priority: medium
+# Description: Create the /api/code-examples endpoint to search for code examples.
+# Details:
+In src/api/endpoints.py, implement the code examples endpoint that:
+1. Accepts query parameters for code search query, source filter, and match count
+2. Calls the MCP tool `search_code_examples` with these parameters
+3. Formats the response according to the specified schema
+4. Handles errors and timeouts
+
+Implement as a GET endpoint at /api/code-examples with query parameters. Validate input parameters before calling the MCP tool. Format the response using the CodeExampleResponse model. Example:
+```python
+from fastapi import APIRouter, HTTPException, Query
+from typing import Optional
+from ..utils.http_helpers import async_with_timeout, validate_search_params
+from ..api.responses import CodeExampleResponse
+
+@router.get("/code-examples", response_model=CodeExampleResponse)
+async def search_code_examples(
+    query: str = Query(..., description="Code search query"),
+    source_id: Optional[str] = Query(None, description="Filter by source identifier"),
+    match_count: int = Query(10, ge=1, le=100, description="Number of examples")
+):
+    """Search for code examples in the knowledge base"""
+    try:
+        # Validate parameters
+        params = validate_search_params(query, source_id, match_count)
+        
+        # Call MCP tool
+        raw_examples = await async_with_timeout(
+            mcp.tools.search_code_examples(
+                query=params["query"],
+                source_id=params["source"],
+                match_count=params["match_count"]
+            ),
+            timeout_seconds=30
+        )
+        
+        # Format response
+        examples = []
+        for example in raw_examples:
+            examples.append({
+                "code": example.get("code"),
+                "language": example.get("language"),
+                "source": example.get("source"),
+                "description": example.get("description")
+            })
+            
+        return {"examples": examples}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Code search failed: {str(e)}")
+```
+
+# Test Strategy:
+Test the code examples endpoint with various query parameters. Test with valid and invalid parameters. Verify that the endpoint correctly calls the MCP tool and formats the response. Test error scenarios and timeout scenarios. Verify that parameter validation works correctly.

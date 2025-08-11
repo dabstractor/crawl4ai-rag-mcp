@@ -1,0 +1,90 @@
+# Task ID: 20
+# Title: Implement Caching for Frequently Used Data
+# Status: pending
+# Dependencies: 8, 9, 10, 11
+# Priority: medium
+# Description: Add caching for frequently accessed data to improve performance.
+# Details:
+Implement caching for:
+1. Sources list (from /api/sources endpoint)
+2. Common search queries
+3. Health check responses
+
+Implement using an in-memory cache with TTL (time-to-live) for development and Redis for production if available. Example:
+```python
+from functools import wraps
+import time
+from typing import Dict, Any, Callable, Optional
+
+# Simple in-memory cache
+class Cache:
+    def __init__(self, ttl_seconds=300):
+        self.cache: Dict[str, Dict[str, Any]] = {}
+        self.ttl_seconds = ttl_seconds
+        
+    def get(self, key: str) -> Optional[Any]:
+        if key in self.cache:
+            entry = self.cache[key]
+            if time.time() - entry["timestamp"] < self.ttl_seconds:
+                return entry["data"]
+            else:
+                # Expired
+                del self.cache[key]
+        return None
+        
+    def set(self, key: str, data: Any) -> None:
+        self.cache[key] = {
+            "data": data,
+            "timestamp": time.time()
+        }
+        
+    def invalidate(self, key: str) -> None:
+        if key in self.cache:
+            del self.cache[key]
+            
+    def clear(self) -> None:
+        self.cache.clear()
+
+# Create cache instance
+cache = Cache()
+
+# Decorator for caching function results
+def cached(key_prefix: str, ttl_seconds: Optional[int] = None):
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Generate cache key
+            key_parts = [key_prefix]
+            key_parts.extend([str(arg) for arg in args])
+            key_parts.extend([f"{k}={v}" for k, v in sorted(kwargs.items())])
+            cache_key = ":".join(key_parts)
+            
+            # Check cache
+            cached_result = cache.get(cache_key)
+            if cached_result is not None:
+                return cached_result
+                
+            # Call function
+            result = await func(*args, **kwargs)
+            
+            # Cache result
+            if ttl_seconds is not None:
+                old_ttl = cache.ttl_seconds
+                cache.ttl_seconds = ttl_seconds
+                cache.set(cache_key, result)
+                cache.ttl_seconds = old_ttl
+            else:
+                cache.set(cache_key, result)
+                
+            return result
+        return wrapper
+    return decorator
+
+# Example usage
+@cached("sources", ttl_seconds=600)
+async def get_sources():
+    # Implementation...
+```
+
+# Test Strategy:
+Test the caching implementation by making repeated requests to cached endpoints and verifying that subsequent requests are faster. Test that cache invalidation works correctly when data changes. Test that the cache respects TTL settings. Test that the cache doesn't return stale data after expiration.

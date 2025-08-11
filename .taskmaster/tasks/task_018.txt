@@ -1,0 +1,66 @@
+# Task ID: 18
+# Title: Update Docker Configuration
+# Status: pending
+# Dependencies: 11, 12, 13, 14
+# Priority: high
+# Description: Update Docker configuration to support the HTTP API.
+# Details:
+Update the Docker configuration to:
+1. Expose the HTTP API port (8051)
+2. Configure CORS settings for production
+3. Set up environment variables for API configuration
+4. Configure logging and monitoring
+
+Update docker-compose.yml and Dockerfile as needed. Ensure that the HTTP API is properly configured in the Docker environment. Example:
+```yaml
+# docker-compose.yml
+services:
+  mcp-crawl4ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8051:8051"
+    environment:
+      - ENABLE_HTTP_API=true
+      - CORS_ORIGINS=http://localhost:3741,https://your-production-domain.com
+      - API_RATE_LIMIT=60
+      - LOG_LEVEL=info
+    volumes:
+      - ./data:/app/data
+    networks:
+      - crawl4ai-network
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    ports:
+      - "3741:80"
+    depends_on:
+      - mcp-crawl4ai
+    networks:
+      - crawl4ai-network
+
+networks:
+  crawl4ai-network:
+```
+
+```dockerfile
+# Dockerfile
+FROM python:3.9-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+
+EXPOSE 8051
+
+CMD ["python", "-m", "src.crawl4ai_mcp"]
+```
+
+# Test Strategy:
+Test the Docker configuration by building and running the containers. Verify that the HTTP API is accessible on port 8051. Test that CORS is correctly configured for the UI. Test that environment variables are correctly passed to the application. Test that the UI can connect to the API in the Docker environment.

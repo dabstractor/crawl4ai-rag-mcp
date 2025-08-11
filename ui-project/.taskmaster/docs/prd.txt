@@ -1,0 +1,50 @@
+<context>
+# Overview  
+Develop a user interface that visualizes crawled websites, embedding descriptions, and other useful information contained within the Crawl4AI MCP system. The UI should connect to the existing Crawl4AI MCP server and provide an intuitive way to explore crawled content. This addresses the need for non-technical users to access and understand the valuable information collected by the web crawling system.
+
+# Core Features  
+Dashboard Overview: Display key statistics from the database including total documents indexed, number of sources crawled, code examples count, and server status indicator with quick action buttons for common operations.
+
+Document Explorer: List all crawled documents with metadata (URL, source, date crawled) with search and filter functionality by source, date, or keywords, preview of document content with similarity scores, and pagination for large result sets.
+
+Content Source Management: Browse available sources in the knowledge base, view source details (domain, summary, word count), filter documents by specific sources, and refresh sources from the database.
+
+Semantic Search Interface: Search functionality using the perform_rag_query tool, ability to filter searches by specific sources, display search results with similarity scores, and view detailed content of search results.
+
+Code Example Browser: Dedicated section for browsing code examples (when USE_AGENTIC_RAG is enabled), search code examples with semantic search, view code snippets with their summaries, and filter by source repository.
+
+Visualization Features: Visual representation of crawled content relationships, source distribution charts, word count statistics, and content similarity visualization.
+
+# User Experience  
+Target users include developers, researchers, and content analysts who need to explore crawled web content. Key user flows include searching for specific information, browsing sources, and exploring code examples. The UI should prioritize intuitive navigation, fast search results, and clear data visualization with responsive design principles.
+</context>
+<PRD>
+# Technical Architecture  
+Frontend Technology: Modern web framework (React, Vue, or Svelte) with responsive design for different screen sizes, real-time updates where applicable, and error handling and user feedback.
+
+Backend Integration: Connect to MCP server at http://localhost:8051/sse, handle asynchronous operations properly, implement proper error handling for API calls, and cache frequently accessed data for performance.
+
+API Integration Requirements: Core tools to integrate include get_available_sources, perform_rag_query, search_code_examples, scrape_urls, and smart_crawl_url with data models for Crawled Pages (URL, content chunks, metadata, embeddings, source_id), Code Examples (code snippets, summaries, source association), and Sources (domain information, summaries, word counts).
+
+Security Considerations: Secure connection to MCP server, input validation for all user inputs, and proper error messages that don't expose system details.
+
+# Development Roadmap  
+MVP Requirements: Dashboard with basic statistics, simple document listing, basic search functionality, and source browsing capabilities.
+
+Phase 1 Enhancements: Advanced filtering and sorting options, export functionality for crawled data, and improved visualization features.
+
+Phase 2 Enhancements: Collaboration features (sharing, commenting), integration with additional MCP tools, and mobile app version.
+
+# Logical Dependency Chain  
+Foundation: Core UI framework and basic dashboard, followed by document explorer and search functionality, then source management features, and finally advanced visualization and code example browsing.
+
+Getting quickly to something usable: Focus on basic dashboard statistics and simple search functionality first to provide immediate value.
+
+Proper pacing and scoping: Each feature should be atomic but can be built upon with incremental improvements.
+
+# Risks and Mitigations  
+Technical challenges with MCP server integration can be mitigated by starting with mock data and gradually integrating real APIs. Ensuring the MVP is functional while planning for future enhancements requires careful scoping of initial features.
+
+# Appendix  
+The Crawl4AI MCP system provides tools for web crawling, search, and RAG capabilities with a PostgreSQL database backend using pgvector for vector similarity search. The system includes tables for crawled_pages, code_examples, and sources with stored procedures for vector similarity search.
+</PRD>

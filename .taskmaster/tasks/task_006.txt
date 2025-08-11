@@ -1,0 +1,50 @@
+# Task ID: 6
+# Title: Implement HTTP Utility Functions
+# Status: pending
+# Dependencies: 2, 5
+# Priority: medium
+# Description: Create utility functions to support HTTP API implementation.
+# Details:
+In src/utils/http_helpers.py, implement utility functions for:
+1. Parameter validation and sanitization
+2. Converting between MCP tool parameters and HTTP query parameters
+3. Handling timeouts and async operations
+4. Managing request context and state
+
+Implement functions like:
+- `validate_query_params(params: dict) -> dict`
+- `format_mcp_response(response: Any) -> dict`
+- `async_with_timeout(coroutine, timeout_seconds=10)`
+- `extract_request_metadata(request: Request) -> dict`
+
+Use Python's asyncio library for async operations and timeout handling. Implement proper error handling and type checking. Example:
+```python
+import asyncio
+from typing import Any, Dict, Callable, TypeVar, Coroutine
+
+T = TypeVar('T')
+
+async def async_with_timeout(coro: Coroutine[Any, Any, T], timeout_seconds: float = 10.0) -> T:
+    """Run a coroutine with a timeout"""
+    try:
+        return await asyncio.wait_for(coro, timeout=timeout_seconds)
+    except asyncio.TimeoutError:
+        raise MCPToolError("Operation timed out", code="TIMEOUT_ERROR")
+        
+def validate_search_params(query: str, source: str = None, match_count: int = 10) -> Dict[str, Any]:
+    """Validate and prepare search parameters for MCP tool"""
+    if not query or not query.strip():
+        raise ValueError("Query parameter cannot be empty")
+        
+    if match_count < 1 or match_count > 100:
+        raise ValueError("match_count must be between 1 and 100")
+        
+    return {
+        "query": query.strip(),
+        "source": source.strip() if source else None,
+        "match_count": match_count
+    }
+```
+
+# Test Strategy:
+Create unit tests for each utility function with various input scenarios. Test edge cases like empty inputs, invalid inputs, and timeout scenarios. Verify that the functions correctly handle errors and return appropriate results.

@@ -1,0 +1,42 @@
+# Task ID: 8
+# Title: Implement Sources Endpoint
+# Status: pending
+# Dependencies: 5, 6
+# Priority: high
+# Description: Create the /api/sources endpoint to retrieve available data sources.
+# Details:
+In src/api/endpoints.py, implement the sources endpoint that:
+1. Calls the MCP tool `get_available_sources`
+2. Formats the response according to the specified schema
+3. Handles errors from the MCP tool
+
+Implement as a GET endpoint at /api/sources. Use the utility functions created earlier for MCP tool interaction. Format the response using the SourceResponse model. Example:
+```python
+from fastapi import APIRouter, HTTPException
+from ..utils.http_helpers import async_with_timeout
+from ..api.responses import SourceResponse, SourcesListResponse
+
+@router.get("/sources", response_model=SourcesListResponse)
+async def get_sources():
+    """Get available sources from crawl database"""
+    try:
+        # Call MCP tool to get sources
+        raw_sources = await async_with_timeout(mcp.tools.get_available_sources())
+        
+        # Format response
+        sources = []
+        for source in raw_sources:
+            sources.append(SourceResponse(
+                domain=source.get("domain"),
+                count=source.get("count", 0),
+                last_updated=source.get("last_updated"),
+                description=source.get("description")
+            ))
+            
+        return SourcesListResponse(sources=sources)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve sources: {str(e)}")
+```
+
+# Test Strategy:
+Test the sources endpoint with mock MCP tool responses. Verify that the endpoint correctly formats the response according to the schema. Test error scenarios where the MCP tool fails and verify that appropriate error responses are returned. Test with empty source lists and large source lists.

@@ -111,6 +111,25 @@ services:
         max-size: "1m"
         max-file: "1"
 
+  # Crawl4AI MCP Visualizer UI
+  crawl4ai-ui:
+    build:
+      context: ./ui-project
+      dockerfile: Dockerfile
+    container_name: crawl4ai-ui
+    restart: unless-stopped
+    ports:
+      - "3741:3741"  # Unusual port to avoid conflicts
+    depends_on:
+      - mcp-crawl4ai
+    networks:
+      - crawl4ai-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "1m"
+        max-file: "2"
+
   # SearXNG Search Engine
   searxng:
     container_name: searxng

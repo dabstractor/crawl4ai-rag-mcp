@@ -1,0 +1,152 @@
+# Task ID: 25
+# Title: Create Production Deployment Guide
+# Status: pending
+# Dependencies: 11, 18, 23
+# Priority: medium
+# Description: Create a comprehensive guide for deploying the HTTP API in production.
+# Details:
+Create a production deployment guide that covers:
+1. System requirements and prerequisites
+2. Installation and setup instructions
+3. Configuration options and environment variables
+4. Security considerations
+5. Monitoring and maintenance
+6. Troubleshooting common issues
+
+Create a docs/deployment.md file with detailed instructions. Include Docker and non-Docker deployment options. Example:
+```markdown
+# Crawl4AI MCP HTTP API Deployment Guide
+
+## System Requirements
+- Python 3.9 or higher
+- Docker and Docker Compose (for containerized deployment)
+- 2GB RAM minimum (4GB recommended)
+- 10GB disk space
+
+## Installation
+
+### Docker Deployment (Recommended)
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-org/crawl4ai-mcp.git
+   cd crawl4ai-mcp
+   ```
+
+2. Configure environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+3. Build and start the containers:
+   ```bash
+   docker-compose up -d
+   ```
+
+4. Verify the deployment:
+   ```bash
+   curl http://localhost:8051/api/health
+   ```
+
+### Manual Deployment
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-org/crawl4ai-mcp.git
+   cd crawl4ai-mcp
+   ```
+
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Configure environment variables:
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+5. Start the server:
+   ```bash
+   python -m src.crawl4ai_mcp
+   ```
+
+## Configuration Options
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|--------|
+| `API_HOST` | Host to bind the server | `0.0.0.0` |
+| `API_PORT` | Port to bind the server | `8051` |
+| `CORS_ORIGINS` | Comma-separated list of allowed origins | `*` |
+| `RATE_LIMIT_ENABLED` | Enable rate limiting | `true` |
+| `RATE_LIMIT_REQUESTS` | Requests per minute per IP | `60` |
+| `LOG_LEVEL` | Logging level | `info` |
+| `CACHE_TTL` | Cache time-to-live in seconds | `300` |
+| `MCP_TIMEOUT` | MCP tool timeout in seconds | `30` |
+
+## Security Considerations
+
+1. **CORS Configuration**: In production, set specific allowed origins instead of using the wildcard `*`.
+
+2. **Rate Limiting**: Adjust rate limits based on your expected traffic and server capacity.
+
+3. **Firewall Rules**: Configure firewall rules to restrict access to the API server.
+
+4. **HTTPS**: Use HTTPS in production by configuring a reverse proxy like Nginx with SSL certificates.
+
+## Monitoring and Maintenance
+
+### Logging
+Logs are written to stdout/stderr and can be viewed with:
+```bash
+docker-compose logs -f mcp-crawl4ai
+```
+
+### Metrics
+Prometheus metrics are available at:
+```
+http://localhost:8051/metrics
+```
+
+### Health Checks
+Use the health endpoint for monitoring:
+```bash
+curl http://localhost:8051/api/health
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Connection Refused**
+   - Check if the server is running
+   - Verify port configuration
+   - Check firewall settings
+
+2. **CORS Errors**
+   - Verify CORS_ORIGINS configuration
+   - Check browser console for specific CORS errors
+
+3. **Slow Response Times**
+   - Check server resource usage
+   - Verify database connection pool settings
+   - Consider increasing cache TTL
+
+4. **Out of Memory Errors**
+   - Increase container memory limits
+   - Check for memory leaks
+   - Optimize large response handling
+```
+
+# Test Strategy:
+Review the deployment guide for accuracy and completeness. Test the deployment process on a clean system following the guide. Verify that all configuration options work as documented. Test troubleshooting steps for common issues. Have team members review the guide for clarity and usability.

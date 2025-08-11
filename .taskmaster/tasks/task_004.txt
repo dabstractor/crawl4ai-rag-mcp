@@ -1,0 +1,36 @@
+# Task ID: 4
+# Title: Create Response Models and Formatters
+# Status: pending
+# Dependencies: 2
+# Priority: high
+# Description: Implement Pydantic models and response formatters for consistent API responses.
+# Details:
+In src/api/responses.py, create Pydantic models for all API responses as specified in the PRD. Implement:
+1. Base APIResponse model with success, data, and error fields
+2. SourceResponse model for source information
+3. SearchResponse model for search results
+4. HealthResponse model for health check
+5. CodeExampleResponse model for code examples
+
+Also implement helper functions to format MCP tool outputs into these response models. Use Pydantic v2.0+ for better performance and validation. Include proper type annotations and field validations. Example:
+```python
+from pydantic import BaseModel, Field
+from typing import List, Optional, Any, Dict
+
+class APIResponse(BaseModel):
+    success: bool = True
+    data: Optional[Any] = None
+    error: Optional[Dict[str, Any]] = None
+
+class SourceResponse(BaseModel):
+    domain: str
+    count: int
+    last_updated: Optional[str] = None
+    description: Optional[str] = None
+
+class SourcesListResponse(BaseModel):
+    sources: List[SourceResponse]
+```
+
+# Test Strategy:
+Create unit tests for each response model with sample data. Verify that models correctly validate input data and reject invalid data. Test serialization/deserialization to ensure JSON compatibility. Verify that the response format matches the specifications in the PRD.

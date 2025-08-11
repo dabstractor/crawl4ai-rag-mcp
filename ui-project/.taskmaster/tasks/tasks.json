@@ -1,0 +1,66 @@
+{
+  "ui-development": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Set up UI development environment",
+        "description": "Create the basic frontend project structure with chosen framework",
+        "details": "Initialize a new frontend project using React, Vue, or Svelte. Set up basic project structure, install dependencies, and configure development server.",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Integrate with MCP server",
+        "description": "Set up connection to the Crawl4AI MCP server at http://localhost:8051/sse",
+        "details": "Implement the connection logic to communicate with the MCP server. Handle authentication if required, and create service layer for API calls.",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Implement document explorer",
+        "description": "Create UI for browsing crawled documents with search and filter capabilities",
+        "details": "Design document listing interface with metadata display, implement search functionality, add filtering options by source/date/keywords, and pagination for large result sets.",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Implement source management",
+        "description": "Create UI for browsing and managing content sources",
+        "details": "Design interface to display available sources, show source details (domain, summary, word count), and implement filtering of documents by specific sources.",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Implement semantic search interface",
+        "description": "Create search functionality using the perform_rag_query tool",
+        "details": "Design search interface, implement connection to perform_rag_query tool, display search results with similarity scores, and allow filtering by specific sources.",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-08-11T22:16:48.693Z",
+      "updated": "2025-08-11T22:43:54.864Z",
+      "description": "Tag created on 8/11/2025"
+    }
+  }
+}

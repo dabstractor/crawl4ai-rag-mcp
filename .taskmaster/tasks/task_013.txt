@@ -1,0 +1,57 @@
+# Task ID: 13
+# Title: Implement API Rate Limiting
+# Status: pending
+# Dependencies: 3, 11
+# Priority: medium
+# Description: Add rate limiting to protect the API from abuse and ensure fair usage.
+# Details:
+In src/api/middleware.py, implement rate limiting middleware that:
+1. Limits requests based on client IP address or API key
+2. Configurable limits per endpoint or globally
+3. Returns appropriate 429 Too Many Requests responses
+4. Includes retry-after headers
+
+Implement using a sliding window algorithm for accurate rate limiting. Use in-memory storage for development and Redis for production if available. Example:
+```python
+from fastapi import FastAPI, Request, HTTPException
+from starlette.middleware.base import BaseHTTPMiddleware
+import time
+from collections import defaultdict
+import os
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, requests_per_minute=60):
+        super().__init__(app)
+        self.requests_per_minute = int(os.getenv("API_RATE_LIMIT", requests_per_minute))
+        self.window_size = 60  # 1 minute window
+        self.request_log = defaultdict(list)  # IP -> list of timestamps
+        
+    async def dispatch(self, request: Request, call_next):
+        # Get client IP
+        client_ip = request.client.host
+        
+        # Clean old requests
+        current_time = time.time()
+        self.request_log[client_ip] = [
+            timestamp for timestamp in self.request_log[client_ip]
+            if current_time - timestamp < self.window_size
+        ]
+        
+        # Check rate limit
+        if len(self.request_log[client_ip]) >= self.requests_per_minute:
+            retry_after = int(self.window_size - (current_time - self.request_log[client_ip][0]))
+            headers = {"Retry-After": str(max(1, retry_after))}
+            raise HTTPException(status_code=429, detail="Rate limit exceeded", headers=headers)
+            
+        # Log request
+        self.request_log[client_ip].append(current_time)
+        
+        # Process request
+        return await call_next(request)
+
+def add_rate_limiting(app: FastAPI, requests_per_minute=60):
+    app.add_middleware(RateLimitMiddleware, requests_per_minute=requests_per_minute)
+```
+
+# Test Strategy:
+Test the rate limiting middleware by sending requests at different rates and verifying that limits are enforced. Test that the 429 response includes the correct headers. Test that the rate limit can be configured via environment variables. Test that the sliding window algorithm works correctly over time.

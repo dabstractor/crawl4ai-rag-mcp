@@ -233,6 +233,8 @@ mcp = FastMCP(
     port=os.getenv("PORT", "8051")
 )
 
+# Note: HTTP API endpoints will be added after MCP server initialization
+
 def rerank_results(model: CrossEncoder, query: str, results: List[Dict[str, Any]], content_key: str = "content") -> List[Dict[str, Any]]:
     """
     Rerank search results using a cross-encoder model.

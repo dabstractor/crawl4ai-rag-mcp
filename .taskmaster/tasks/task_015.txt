@@ -1,0 +1,50 @@
+# Task ID: 15
+# Title: Implement API Documentation with Swagger UI
+# Status: pending
+# Dependencies: 7, 8, 9, 10, 11
+# Priority: medium
+# Description: Add Swagger UI documentation for the HTTP API endpoints.
+# Details:
+Configure FastAPI's built-in Swagger UI documentation for the HTTP API endpoints. Include:
+1. Detailed descriptions for each endpoint
+2. Parameter documentation with examples
+3. Response schema documentation
+4. Authentication information if applicable
+
+Use FastAPI's OpenAPI integration. Add detailed docstrings to all endpoint functions. Configure the OpenAPI schema with proper metadata. Example:
+```python
+from fastapi import FastAPI
+
+# Configure FastAPI app with documentation
+app = FastAPI(
+    title="Crawl4AI MCP HTTP API",
+    description="HTTP API bridge for Crawl4AI MCP server",
+    version="1.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json"
+)
+
+# Add detailed docstrings to endpoints
+@app.get("/api/health")
+async def health_check():
+    """Health check endpoint for UI connectivity testing.
+    
+    Returns:
+        dict: Server health information including status, version, and uptime.
+        
+    Example response:
+        ```json
+        {
+            "status": "healthy",
+            "version": "1.0.0",
+            "uptime": 3600,
+            "mcp_tools_available": true
+        }
+        ```
+    """
+    # Implementation...
+```
+
+# Test Strategy:
+Test the Swagger UI documentation by accessing the /api/docs endpoint and verifying that all endpoints are correctly documented. Test that the documentation includes all parameters, response schemas, and examples. Verify that the documentation is accessible and usable.

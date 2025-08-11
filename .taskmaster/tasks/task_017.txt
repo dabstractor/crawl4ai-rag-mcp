@@ -1,0 +1,81 @@
+# Task ID: 17
+# Title: Create Integration Tests for UI Connectivity
+# Status: pending
+# Dependencies: 11, 16
+# Priority: high
+# Description: Implement integration tests to verify that the UI can connect to the HTTP API.
+# Details:
+Create integration tests that simulate the UI's interaction with the HTTP API. Test:
+1. Connection test functionality
+2. Sources dropdown population
+3. Search functionality
+4. Error handling and display
+
+Implement tests using a combination of API client tests and browser automation if possible. Test the specific UI components mentioned in the PRD. Example:
+```python
+import pytest
+import requests
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+@pytest.fixture
+def api_base_url():
+    return "http://localhost:8051/api"
+
+def test_connection_test_component(api_base_url):
+    # Test that the health endpoint returns a successful response
+    response = requests.get(f"{api_base_url}/health")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "healthy"
+
+def test_sources_dropdown(api_base_url):
+    # Test that the sources endpoint returns data that can populate the dropdown
+    response = requests.get(f"{api_base_url}/sources")
+    assert response.status_code == 200
+    data = response.json()
+    assert "sources" in data
+    assert len(data["sources"]) > 0
+
+def test_search_functionality(api_base_url):
+    # Test that the search endpoint returns results
+    response = requests.get(f"{api_base_url}/search?query=test")
+    assert response.status_code == 200
+    data = response.json()
+    assert "results" in data
+    assert "query" in data
+    assert data["query"] == "test"
+
+# Browser automation test (if possible)
+@pytest.mark.selenium
+def test_ui_connection(api_base_url):
+    driver = webdriver.Chrome()
+    try:
+        # Navigate to the UI
+        driver.get("http://localhost:3741")
+        
+        # Wait for connection test to complete
+        connection_status = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.ID, "connection-status"))
+        )
+        assert "Connected" in connection_status.text
+        
+        # Test search functionality
+        search_input = driver.find_element(By.ID, "search-input")
+        search_input.send_keys("test query")
+        search_button = driver.find_element(By.ID, "search-button")
+        search_button.click()
+        
+        # Wait for results
+        results = WebDriverWait(driver, 10).until(
+            EC.presence_of_element_located((By.CLASS_NAME, "search-results"))
+        )
+        assert results.is_displayed()
+    finally:
+        driver.quit()
+```
+
+# Test Strategy:
+Run the integration tests against a running instance of the HTTP API server. Verify that all tests pass. Test with both mock data and real data if possible. Test error scenarios and recovery. If browser automation is used, verify that the UI components work correctly with the API.

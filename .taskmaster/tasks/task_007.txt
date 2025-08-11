@@ -1,0 +1,41 @@
+# Task ID: 7
+# Title: Implement Health Check Endpoint
+# Status: pending
+# Dependencies: 5, 6
+# Priority: high
+# Description: Create the /api/health endpoint to verify server status and connectivity.
+# Details:
+In src/api/endpoints.py, implement the health check endpoint that:
+1. Checks if the MCP server is running and responsive
+2. Returns server version, uptime, and status information
+3. Verifies that MCP tools are available
+
+Implement as a GET endpoint at /api/health. Use FastAPI's routing system. Include proper error handling and response formatting. Example:
+```python
+import time
+import os
+from fastapi import APIRouter, HTTPException
+from ..utils.http_helpers import async_with_timeout
+
+router = APIRouter(prefix="/api")
+start_time = time.time()
+
+@router.get("/health")
+async def health_check():
+    """Health check endpoint for UI connectivity testing"""
+    try:
+        # Check if MCP tools are available
+        mcp_tools_available = True  # Replace with actual check
+        
+        return {
+            "status": "healthy",
+            "version": os.getenv("MCP_VERSION", "1.0.0"),
+            "uptime": int(time.time() - start_time),
+            "mcp_tools_available": mcp_tools_available
+        }
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Service unhealthy: {str(e)}")
+```
+
+# Test Strategy:
+Test the health check endpoint with the server in various states (healthy, partially degraded, tools unavailable). Verify that the endpoint returns the correct status code and response format. Test that uptime is correctly calculated and increments over time.

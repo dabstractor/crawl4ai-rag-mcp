@@ -1,0 +1,371 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Research FastMCP HTTP Integration Options",
+        "description": "Investigate the best approach for integrating HTTP API capabilities with the existing FastMCP server.",
+        "details": "Research the three options outlined in the PRD: FastMCP Router Extension, Separate FastAPI Instance, and FastMCP Hook System. Evaluate each approach based on compatibility with current FastMCP version, ease of implementation, and performance impact. Document findings with code examples for each approach. Specifically check if FastMCP exposes the underlying FastAPI app directly or if it has a hook system. Consider using FastAPI 0.104.0+ for its improved typing support and performance. Document any potential breaking changes or compatibility issues with the current MCP implementation.",
+        "testStrategy": "Create proof-of-concept implementations for each approach and test basic functionality. Measure performance overhead for each approach. Document findings in a comparison matrix with pros/cons for team review.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 2,
+        "title": "Setup Project Structure for HTTP API Layer",
+        "description": "Create the necessary directory structure and initial files for the HTTP API implementation.",
+        "details": "Following the file structure outlined in the PRD, create the following directories and files:\n- src/api/__init__.py\n- src/api/endpoints.py\n- src/api/middleware.py\n- src/api/responses.py\n- src/utils/http_helpers.py\n\nEnsure proper Python module imports and initialize empty classes/functions that will be implemented in later tasks. Set up proper type hints using Python typing module. Use FastAPI 0.104.0+ for the HTTP layer implementation. Create a requirements.txt file that includes all necessary dependencies including FastAPI, Uvicorn, and any other required packages.",
+        "testStrategy": "Verify that the project structure is correctly set up by running a basic import test that imports all modules. Ensure that the file structure matches the PRD specifications. Run a linting tool (like flake8 or pylint) to verify code structure.",
+        "priority": "high",
+        "dependencies": [
+          1
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Implement CORS Middleware",
+        "description": "Create CORS middleware to handle cross-origin requests from the browser-based UI.",
+        "details": "Implement the CORS middleware in src/api/middleware.py using FastAPI's CORSMiddleware. Configure the middleware to:\n1. Allow all origins initially for development (\"*\")\n2. Support environment variable configuration for production (CORS_ORIGINS)\n3. Allow GET, POST, OPTIONS methods\n4. Allow Content-Type and Authorization headers\n5. Handle preflight OPTIONS requests correctly\n\nImplementation should use FastAPI's built-in CORSMiddleware with proper configuration. Include a function to add the middleware to the FastAPI app instance. Example:\n```python\ndef add_cors_middleware(app: FastAPI):\n    origins = os.getenv(\"CORS_ORIGINS\", \"*\").split(\",\")\n    app.add_middleware(\n        CORSMiddleware,\n        allow_origins=origins,\n        allow_credentials=True,\n        allow_methods=[\"GET\", \"POST\", \"OPTIONS\"],\n        allow_headers=[\"Content-Type\", \"Authorization\"],\n    )\n```",
+        "testStrategy": "Test the CORS middleware by sending requests with different Origin headers and verifying that the appropriate CORS headers are returned. Test preflight OPTIONS requests to ensure they're handled correctly. Verify that environment variable configuration works by setting different CORS_ORIGINS values.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Create Response Models and Formatters",
+        "description": "Implement Pydantic models and response formatters for consistent API responses.",
+        "details": "In src/api/responses.py, create Pydantic models for all API responses as specified in the PRD. Implement:\n1. Base APIResponse model with success, data, and error fields\n2. SourceResponse model for source information\n3. SearchResponse model for search results\n4. HealthResponse model for health check\n5. CodeExampleResponse model for code examples\n\nAlso implement helper functions to format MCP tool outputs into these response models. Use Pydantic v2.0+ for better performance and validation. Include proper type annotations and field validations. Example:\n```python\nfrom pydantic import BaseModel, Field\nfrom typing import List, Optional, Any, Dict\n\nclass APIResponse(BaseModel):\n    success: bool = True\n    data: Optional[Any] = None\n    error: Optional[Dict[str, Any]] = None\n\nclass SourceResponse(BaseModel):\n    domain: str\n    count: int\n    last_updated: Optional[str] = None\n    description: Optional[str] = None\n\nclass SourcesListResponse(BaseModel):\n    sources: List[SourceResponse]\n```",
+        "testStrategy": "Create unit tests for each response model with sample data. Verify that models correctly validate input data and reject invalid data. Test serialization/deserialization to ensure JSON compatibility. Verify that the response format matches the specifications in the PRD.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Implement Error Handling Framework",
+        "description": "Create a comprehensive error handling system for the HTTP API.",
+        "details": "In src/api/middleware.py, implement an error handling framework that:\n1. Catches exceptions and converts them to appropriate HTTP responses\n2. Maps different error types to appropriate HTTP status codes\n3. Formats error messages according to the PRD specification\n4. Logs errors for debugging and monitoring\n\nImplement exception handlers for common exceptions like ValidationError, HTTPException, and general exceptions. Use FastAPI's exception_handler decorator. Create custom exception classes for specific error scenarios. Implement a function to generate standardized error responses. Example:\n```python\nfrom fastapi import FastAPI, Request, HTTPException\nfrom fastapi.responses import JSONResponse\nimport logging\n\nlogger = logging.getLogger(__name__)\n\nclass MCPToolError(Exception):\n    def __init__(self, message: str, code: str = \"INTERNAL_ERROR\", details: str = None):\n        self.message = message\n        self.code = code\n        self.details = details\n        super().__init__(self.message)\n\ndef add_exception_handlers(app: FastAPI):\n    @app.exception_handler(HTTPException)\n    async def http_exception_handler(request: Request, exc: HTTPException):\n        return JSONResponse(\n            status_code=exc.status_code,\n            content={\"error\": {\"code\": \"HTTP_ERROR\", \"message\": exc.detail}}\n        )\n        \n    @app.exception_handler(MCPToolError)\n    async def mcp_tool_error_handler(request: Request, exc: MCPToolError):\n        logger.error(f\"MCP Tool Error: {exc.message}\")\n        return JSONResponse(\n            status_code=500,\n            content={\"error\": {\"code\": exc.code, \"message\": exc.message, \"details\": exc.details}}\n        )\n```",
+        "testStrategy": "Create unit tests that trigger different types of exceptions and verify that they're correctly caught and formatted. Test that appropriate HTTP status codes are returned for different error types. Verify that error logging works correctly. Test that the error response format matches the PRD specification.",
+        "priority": "high",
+        "dependencies": [
+          3,
+          4
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Implement HTTP Utility Functions",
+        "description": "Create utility functions to support HTTP API implementation.",
+        "details": "In src/utils/http_helpers.py, implement utility functions for:\n1. Parameter validation and sanitization\n2. Converting between MCP tool parameters and HTTP query parameters\n3. Handling timeouts and async operations\n4. Managing request context and state\n\nImplement functions like:\n- `validate_query_params(params: dict) -> dict`\n- `format_mcp_response(response: Any) -> dict`\n- `async_with_timeout(coroutine, timeout_seconds=10)`\n- `extract_request_metadata(request: Request) -> dict`\n\nUse Python's asyncio library for async operations and timeout handling. Implement proper error handling and type checking. Example:\n```python\nimport asyncio\nfrom typing import Any, Dict, Callable, TypeVar, Coroutine\n\nT = TypeVar('T')\n\nasync def async_with_timeout(coro: Coroutine[Any, Any, T], timeout_seconds: float = 10.0) -> T:\n    \"\"\"Run a coroutine with a timeout\"\"\"\n    try:\n        return await asyncio.wait_for(coro, timeout=timeout_seconds)\n    except asyncio.TimeoutError:\n        raise MCPToolError(\"Operation timed out\", code=\"TIMEOUT_ERROR\")\n        \ndef validate_search_params(query: str, source: str = None, match_count: int = 10) -> Dict[str, Any]:\n    \"\"\"Validate and prepare search parameters for MCP tool\"\"\"\n    if not query or not query.strip():\n        raise ValueError(\"Query parameter cannot be empty\")\n        \n    if match_count < 1 or match_count > 100:\n        raise ValueError(\"match_count must be between 1 and 100\")\n        \n    return {\n        \"query\": query.strip(),\n        \"source\": source.strip() if source else None,\n        \"match_count\": match_count\n    }\n```",
+        "testStrategy": "Create unit tests for each utility function with various input scenarios. Test edge cases like empty inputs, invalid inputs, and timeout scenarios. Verify that the functions correctly handle errors and return appropriate results.",
+        "priority": "medium",
+        "dependencies": [
+          2,
+          5
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Implement Health Check Endpoint",
+        "description": "Create the /api/health endpoint to verify server status and connectivity.",
+        "details": "In src/api/endpoints.py, implement the health check endpoint that:\n1. Checks if the MCP server is running and responsive\n2. Returns server version, uptime, and status information\n3. Verifies that MCP tools are available\n\nImplement as a GET endpoint at /api/health. Use FastAPI's routing system. Include proper error handling and response formatting. Example:\n```python\nimport time\nimport os\nfrom fastapi import APIRouter, HTTPException\nfrom ..utils.http_helpers import async_with_timeout\n\nrouter = APIRouter(prefix=\"/api\")\nstart_time = time.time()\n\n@router.get(\"/health\")\nasync def health_check():\n    \"\"\"Health check endpoint for UI connectivity testing\"\"\"\n    try:\n        # Check if MCP tools are available\n        mcp_tools_available = True  # Replace with actual check\n        \n        return {\n            \"status\": \"healthy\",\n            \"version\": os.getenv(\"MCP_VERSION\", \"1.0.0\"),\n            \"uptime\": int(time.time() - start_time),\n            \"mcp_tools_available\": mcp_tools_available\n        }\n    except Exception as e:\n        raise HTTPException(status_code=503, detail=f\"Service unhealthy: {str(e)}\")\n```",
+        "testStrategy": "Test the health check endpoint with the server in various states (healthy, partially degraded, tools unavailable). Verify that the endpoint returns the correct status code and response format. Test that uptime is correctly calculated and increments over time.",
+        "priority": "high",
+        "dependencies": [
+          5,
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Implement Sources Endpoint",
+        "description": "Create the /api/sources endpoint to retrieve available data sources.",
+        "details": "In src/api/endpoints.py, implement the sources endpoint that:\n1. Calls the MCP tool `get_available_sources`\n2. Formats the response according to the specified schema\n3. Handles errors from the MCP tool\n\nImplement as a GET endpoint at /api/sources. Use the utility functions created earlier for MCP tool interaction. Format the response using the SourceResponse model. Example:\n```python\nfrom fastapi import APIRouter, HTTPException\nfrom ..utils.http_helpers import async_with_timeout\nfrom ..api.responses import SourceResponse, SourcesListResponse\n\n@router.get(\"/sources\", response_model=SourcesListResponse)\nasync def get_sources():\n    \"\"\"Get available sources from crawl database\"\"\"\n    try:\n        # Call MCP tool to get sources\n        raw_sources = await async_with_timeout(mcp.tools.get_available_sources())\n        \n        # Format response\n        sources = []\n        for source in raw_sources:\n            sources.append(SourceResponse(\n                domain=source.get(\"domain\"),\n                count=source.get(\"count\", 0),\n                last_updated=source.get(\"last_updated\"),\n                description=source.get(\"description\")\n            ))\n            \n        return SourcesListResponse(sources=sources)\n    except Exception as e:\n        raise HTTPException(status_code=500, detail=f\"Failed to retrieve sources: {str(e)}\")\n```",
+        "testStrategy": "Test the sources endpoint with mock MCP tool responses. Verify that the endpoint correctly formats the response according to the schema. Test error scenarios where the MCP tool fails and verify that appropriate error responses are returned. Test with empty source lists and large source lists.",
+        "priority": "high",
+        "dependencies": [
+          5,
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Implement Search/RAG Query Endpoint",
+        "description": "Create the /api/search endpoint to perform semantic search using RAG functionality.",
+        "details": "In src/api/endpoints.py, implement the search endpoint that:\n1. Accepts query parameters for search query, source filter, and match count\n2. Calls the MCP tool `perform_rag_query` with these parameters\n3. Formats the response according to the specified schema\n4. Handles errors and timeouts\n\nImplement as a GET endpoint at /api/search with query parameters. Validate input parameters before calling the MCP tool. Format the response using the SearchResponse model. Example:\n```python\nfrom fastapi import APIRouter, HTTPException, Query\nfrom typing import Optional\nfrom ..utils.http_helpers import async_with_timeout, validate_search_params\nfrom ..api.responses import SearchResponse\n\n@router.get(\"/search\", response_model=SearchResponse)\nasync def search_content(\n    query: str = Query(..., description=\"Search query\"),\n    source: Optional[str] = Query(None, description=\"Filter by source\"),\n    match_count: int = Query(10, ge=1, le=100, description=\"Number of results\")\n):\n    \"\"\"Perform RAG search query\"\"\"\n    try:\n        # Validate parameters\n        params = validate_search_params(query, source, match_count)\n        \n        # Call MCP tool\n        raw_results = await async_with_timeout(\n            mcp.tools.perform_rag_query(\n                query=params[\"query\"],\n                source=params[\"source\"],\n                match_count=params[\"match_count\"]\n            ),\n            timeout_seconds=30  # Longer timeout for search\n        )\n        \n        # Format response\n        results = []\n        for result in raw_results:\n            results.append({\n                \"content\": result.get(\"content\"),\n                \"source\": result.get(\"source\"),\n                \"score\": result.get(\"score\"),\n                \"metadata\": result.get(\"metadata\", {})\n            })\n            \n        return {\n            \"results\": results,\n            \"query\": query,\n            \"total_results\": len(results)\n        }\n    except ValueError as e:\n        raise HTTPException(status_code=400, detail=str(e))\n    except Exception as e:\n        raise HTTPException(status_code=500, detail=f\"Search failed: {str(e)}\")\n```",
+        "testStrategy": "Test the search endpoint with various query parameters. Test with valid and invalid parameters. Verify that the endpoint correctly calls the MCP tool and formats the response. Test error scenarios and timeout scenarios. Verify that parameter validation works correctly.",
+        "priority": "high",
+        "dependencies": [
+          5,
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Implement Code Examples Endpoint",
+        "description": "Create the /api/code-examples endpoint to search for code examples.",
+        "details": "In src/api/endpoints.py, implement the code examples endpoint that:\n1. Accepts query parameters for code search query, source filter, and match count\n2. Calls the MCP tool `search_code_examples` with these parameters\n3. Formats the response according to the specified schema\n4. Handles errors and timeouts\n\nImplement as a GET endpoint at /api/code-examples with query parameters. Validate input parameters before calling the MCP tool. Format the response using the CodeExampleResponse model. Example:\n```python\nfrom fastapi import APIRouter, HTTPException, Query\nfrom typing import Optional\nfrom ..utils.http_helpers import async_with_timeout, validate_search_params\nfrom ..api.responses import CodeExampleResponse\n\n@router.get(\"/code-examples\", response_model=CodeExampleResponse)\nasync def search_code_examples(\n    query: str = Query(..., description=\"Code search query\"),\n    source_id: Optional[str] = Query(None, description=\"Filter by source identifier\"),\n    match_count: int = Query(10, ge=1, le=100, description=\"Number of examples\")\n):\n    \"\"\"Search for code examples in the knowledge base\"\"\"\n    try:\n        # Validate parameters\n        params = validate_search_params(query, source_id, match_count)\n        \n        # Call MCP tool\n        raw_examples = await async_with_timeout(\n            mcp.tools.search_code_examples(\n                query=params[\"query\"],\n                source_id=params[\"source\"],\n                match_count=params[\"match_count\"]\n            ),\n            timeout_seconds=30\n        )\n        \n        # Format response\n        examples = []\n        for example in raw_examples:\n            examples.append({\n                \"code\": example.get(\"code\"),\n                \"language\": example.get(\"language\"),\n                \"source\": example.get(\"source\"),\n                \"description\": example.get(\"description\")\n            })\n            \n        return {\"examples\": examples}\n    except ValueError as e:\n        raise HTTPException(status_code=400, detail=str(e))\n    except Exception as e:\n        raise HTTPException(status_code=500, detail=f\"Code search failed: {str(e)}\")\n```",
+        "testStrategy": "Test the code examples endpoint with various query parameters. Test with valid and invalid parameters. Verify that the endpoint correctly calls the MCP tool and formats the response. Test error scenarios and timeout scenarios. Verify that parameter validation works correctly.",
+        "priority": "medium",
+        "dependencies": [
+          5,
+          6
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 11,
+        "title": "Integrate HTTP API with FastMCP Server",
+        "description": "Integrate the HTTP API endpoints with the existing FastMCP server.",
+        "details": "Based on the research from Task 1, implement the chosen approach to integrate the HTTP API with the FastMCP server. This may involve:\n1. Extending the FastMCP router\n2. Creating a separate FastAPI instance\n3. Using the FastMCP hook system\n\nModify the main server file (src/crawl4ai_mcp.py) to include the HTTP API endpoints. Ensure that the integration doesn't interfere with existing MCP functionality. Add configuration options to enable/disable the HTTP API. Example (for router extension approach):\n```python\nfrom fastmcp import FastMCP\nfrom fastapi import FastAPI\nimport os\n\nfrom .api.endpoints import router as api_router\nfrom .api.middleware import add_cors_middleware, add_exception_handlers\n\n# Initialize FastMCP\nmcp = FastMCP()\n\n# Check if HTTP API is enabled\nif os.getenv(\"ENABLE_HTTP_API\", \"true\").lower() == \"true\":\n    # Add API router to FastMCP app\n    mcp.app.include_router(api_router)\n    \n    # Add middleware\n    add_cors_middleware(mcp.app)\n    add_exception_handlers(mcp.app)\n    \n    print(\"HTTP API enabled on /api/*\")\n```",
+        "testStrategy": "Test the integrated server by starting it and verifying that both the MCP functionality and HTTP API endpoints work correctly. Test that the HTTP API can be enabled/disabled via configuration. Verify that the integration doesn't break existing MCP functionality.",
+        "priority": "high",
+        "dependencies": [
+          1,
+          7,
+          8,
+          9,
+          10
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 12,
+        "title": "Implement Request Logging Middleware",
+        "description": "Create middleware for logging HTTP requests and responses.",
+        "details": "In src/api/middleware.py, implement request logging middleware that:\n1. Logs incoming requests with method, path, and query parameters\n2. Logs response status codes and timing information\n3. Includes correlation IDs for request tracking\n4. Configurable log levels based on environment\n\nImplement using FastAPI middleware. Include timing information to help identify slow endpoints. Use Python's logging module with proper formatting. Example:\n```python\nimport time\nimport uuid\nimport logging\nfrom fastapi import FastAPI, Request\nfrom starlette.middleware.base import BaseHTTPMiddleware\n\nlogger = logging.getLogger(__name__)\n\nclass RequestLoggingMiddleware(BaseHTTPMiddleware):\n    async def dispatch(self, request: Request, call_next):\n        request_id = str(uuid.uuid4())\n        start_time = time.time()\n        \n        # Log request\n        logger.info(f\"Request {request_id}: {request.method} {request.url.path}\")\n        \n        # Process request\n        try:\n            response = await call_next(request)\n            process_time = time.time() - start_time\n            \n            # Log response\n            logger.info(\n                f\"Response {request_id}: {response.status_code} completed in {process_time:.3f}s\"\n            )\n            \n            # Add custom headers\n            response.headers[\"X-Process-Time\"] = str(process_time)\n            response.headers[\"X-Request-ID\"] = request_id\n            \n            return response\n        except Exception as e:\n            process_time = time.time() - start_time\n            logger.error(\n                f\"Error {request_id}: {str(e)} after {process_time:.3f}s\"\n            )\n            raise\n\ndef add_logging_middleware(app: FastAPI):\n    app.add_middleware(RequestLoggingMiddleware)\n```",
+        "testStrategy": "Test the logging middleware by sending various requests and verifying that they're correctly logged. Test error scenarios and verify that errors are properly logged. Check that timing information is accurate and that correlation IDs are consistent across log entries.",
+        "priority": "medium",
+        "dependencies": [
+          3,
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 13,
+        "title": "Implement API Rate Limiting",
+        "description": "Add rate limiting to protect the API from abuse and ensure fair usage.",
+        "details": "In src/api/middleware.py, implement rate limiting middleware that:\n1. Limits requests based on client IP address or API key\n2. Configurable limits per endpoint or globally\n3. Returns appropriate 429 Too Many Requests responses\n4. Includes retry-after headers\n\nImplement using a sliding window algorithm for accurate rate limiting. Use in-memory storage for development and Redis for production if available. Example:\n```python\nfrom fastapi import FastAPI, Request, HTTPException\nfrom starlette.middleware.base import BaseHTTPMiddleware\nimport time\nfrom collections import defaultdict\nimport os\n\nclass RateLimitMiddleware(BaseHTTPMiddleware):\n    def __init__(self, app, requests_per_minute=60):\n        super().__init__(app)\n        self.requests_per_minute = int(os.getenv(\"API_RATE_LIMIT\", requests_per_minute))\n        self.window_size = 60  # 1 minute window\n        self.request_log = defaultdict(list)  # IP -> list of timestamps\n        \n    async def dispatch(self, request: Request, call_next):\n        # Get client IP\n        client_ip = request.client.host\n        \n        # Clean old requests\n        current_time = time.time()\n        self.request_log[client_ip] = [\n            timestamp for timestamp in self.request_log[client_ip]\n            if current_time - timestamp < self.window_size\n        ]\n        \n        # Check rate limit\n        if len(self.request_log[client_ip]) >= self.requests_per_minute:\n            retry_after = int(self.window_size - (current_time - self.request_log[client_ip][0]))\n            headers = {\"Retry-After\": str(max(1, retry_after))}\n            raise HTTPException(status_code=429, detail=\"Rate limit exceeded\", headers=headers)\n            \n        # Log request\n        self.request_log[client_ip].append(current_time)\n        \n        # Process request\n        return await call_next(request)\n\ndef add_rate_limiting(app: FastAPI, requests_per_minute=60):\n    app.add_middleware(RateLimitMiddleware, requests_per_minute=requests_per_minute)\n```",
+        "testStrategy": "Test the rate limiting middleware by sending requests at different rates and verifying that limits are enforced. Test that the 429 response includes the correct headers. Test that the rate limit can be configured via environment variables. Test that the sliding window algorithm works correctly over time.",
+        "priority": "medium",
+        "dependencies": [
+          3,
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 14,
+        "title": "Add Security Headers Middleware",
+        "description": "Implement middleware to add security headers to all HTTP responses.",
+        "details": "In src/api/middleware.py, implement security headers middleware that adds:\n1. Content-Security-Policy headers\n2. X-Content-Type-Options: nosniff\n3. X-Frame-Options: DENY\n4. Strict-Transport-Security headers\n5. X-XSS-Protection headers\n\nImplement using FastAPI middleware. Make headers configurable via environment variables. Example:\n```python\nfrom fastapi import FastAPI\nfrom starlette.middleware.base import BaseHTTPMiddleware\nimport os\n\nclass SecurityHeadersMiddleware(BaseHTTPMiddleware):\n    async def dispatch(self, request, call_next):\n        response = await call_next(request)\n        \n        # Add security headers\n        response.headers[\"X-Content-Type-Options\"] = \"nosniff\"\n        response.headers[\"X-Frame-Options\"] = \"DENY\"\n        response.headers[\"X-XSS-Protection\"] = \"1; mode=block\"\n        \n        # Add HSTS header if HTTPS is enabled\n        if os.getenv(\"ENABLE_HTTPS\", \"false\").lower() == \"true\":\n            response.headers[\"Strict-Transport-Security\"] = \"max-age=31536000; includeSubDomains\"\n            \n        # Add CSP header\n        csp_value = os.getenv(\n            \"CONTENT_SECURITY_POLICY\",\n            \"default-src 'self'; script-src 'self'; connect-src 'self'\"\n        )\n        response.headers[\"Content-Security-Policy\"] = csp_value\n        \n        return response\n\ndef add_security_headers(app: FastAPI):\n    app.add_middleware(SecurityHeadersMiddleware)\n```",
+        "testStrategy": "Test the security headers middleware by sending requests and verifying that the responses include the correct security headers. Test that the headers can be configured via environment variables. Use security scanning tools to verify that the headers provide adequate protection.",
+        "priority": "medium",
+        "dependencies": [
+          3,
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 15,
+        "title": "Implement API Documentation with Swagger UI",
+        "description": "Add Swagger UI documentation for the HTTP API endpoints.",
+        "details": "Configure FastAPI's built-in Swagger UI documentation for the HTTP API endpoints. Include:\n1. Detailed descriptions for each endpoint\n2. Parameter documentation with examples\n3. Response schema documentation\n4. Authentication information if applicable\n\nUse FastAPI's OpenAPI integration. Add detailed docstrings to all endpoint functions. Configure the OpenAPI schema with proper metadata. Example:\n```python\nfrom fastapi import FastAPI\n\n# Configure FastAPI app with documentation\napp = FastAPI(\n    title=\"Crawl4AI MCP HTTP API\",\n    description=\"HTTP API bridge for Crawl4AI MCP server\",\n    version=\"1.0.0\",\n    docs_url=\"/api/docs\",\n    redoc_url=\"/api/redoc\",\n    openapi_url=\"/api/openapi.json\"\n)\n\n# Add detailed docstrings to endpoints\n@app.get(\"/api/health\")\nasync def health_check():\n    \"\"\"Health check endpoint for UI connectivity testing.\n    \n    Returns:\n        dict: Server health information including status, version, and uptime.\n        \n    Example response:\n        ```json\n        {\n            \"status\": \"healthy\",\n            \"version\": \"1.0.0\",\n            \"uptime\": 3600,\n            \"mcp_tools_available\": true\n        }\n        ```\n    \"\"\"\n    # Implementation...\n```",
+        "testStrategy": "Test the Swagger UI documentation by accessing the /api/docs endpoint and verifying that all endpoints are correctly documented. Test that the documentation includes all parameters, response schemas, and examples. Verify that the documentation is accessible and usable.",
+        "priority": "medium",
+        "dependencies": [
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 16,
+        "title": "Create Unit Tests for API Endpoints",
+        "description": "Implement comprehensive unit tests for all HTTP API endpoints.",
+        "details": "Create unit tests for all HTTP API endpoints using pytest and FastAPI's TestClient. Test:\n1. Successful responses with various parameters\n2. Error handling for invalid parameters\n3. Error handling for MCP tool failures\n4. CORS headers and preflight requests\n\nImplement tests using pytest fixtures for setup and teardown. Use mocking to simulate MCP tool responses. Example:\n```python\nimport pytest\nfrom fastapi.testclient import TestClient\nfrom unittest.mock import patch, MagicMock\n\nfrom ..main import app  # Import your FastAPI app\n\n@pytest.fixture\ndef client():\n    return TestClient(app)\n\n@pytest.fixture\ndef mock_mcp_tools():\n    with patch(\"your_module.mcp.tools\") as mock_tools:\n        # Configure mock responses\n        mock_tools.get_available_sources.return_value = [\n            {\"domain\": \"example.com\", \"count\": 150, \"last_updated\": \"2025-01-15T10:30:00Z\"}\n        ]\n        yield mock_tools\n\ndef test_health_endpoint(client):\n    response = client.get(\"/api/health\")\n    assert response.status_code == 200\n    data = response.json()\n    assert \"status\" in data\n    assert data[\"status\"] == \"healthy\"\n\ndef test_sources_endpoint(client, mock_mcp_tools):\n    response = client.get(\"/api/sources\")\n    assert response.status_code == 200\n    data = response.json()\n    assert \"sources\" in data\n    assert len(data[\"sources\"]) == 1\n    assert data[\"sources\"][0][\"domain\"] == \"example.com\"\n\ndef test_search_endpoint_validation(client):\n    # Test missing query parameter\n    response = client.get(\"/api/search\")\n    assert response.status_code == 422  # Validation error\n    \n    # Test invalid match_count\n    response = client.get(\"/api/search?query=test&match_count=0\")\n    assert response.status_code == 422  # Validation error\n```",
+        "testStrategy": "Run the unit tests using pytest. Verify that all tests pass. Measure code coverage to ensure that all code paths are tested. Test edge cases and error scenarios. Verify that the tests correctly simulate MCP tool responses and failures.",
+        "priority": "high",
+        "dependencies": [
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 17,
+        "title": "Create Integration Tests for UI Connectivity",
+        "description": "Implement integration tests to verify that the UI can connect to the HTTP API.",
+        "details": "Create integration tests that simulate the UI's interaction with the HTTP API. Test:\n1. Connection test functionality\n2. Sources dropdown population\n3. Search functionality\n4. Error handling and display\n\nImplement tests using a combination of API client tests and browser automation if possible. Test the specific UI components mentioned in the PRD. Example:\n```python\nimport pytest\nimport requests\nfrom selenium import webdriver\nfrom selenium.webdriver.common.by import By\nfrom selenium.webdriver.support.ui import WebDriverWait\nfrom selenium.webdriver.support import expected_conditions as EC\n\n@pytest.fixture\ndef api_base_url():\n    return \"http://localhost:8051/api\"\n\ndef test_connection_test_component(api_base_url):\n    # Test that the health endpoint returns a successful response\n    response = requests.get(f\"{api_base_url}/health\")\n    assert response.status_code == 200\n    data = response.json()\n    assert data[\"status\"] == \"healthy\"\n\ndef test_sources_dropdown(api_base_url):\n    # Test that the sources endpoint returns data that can populate the dropdown\n    response = requests.get(f\"{api_base_url}/sources\")\n    assert response.status_code == 200\n    data = response.json()\n    assert \"sources\" in data\n    assert len(data[\"sources\"]) > 0\n\ndef test_search_functionality(api_base_url):\n    # Test that the search endpoint returns results\n    response = requests.get(f\"{api_base_url}/search?query=test\")\n    assert response.status_code == 200\n    data = response.json()\n    assert \"results\" in data\n    assert \"query\" in data\n    assert data[\"query\"] == \"test\"\n\n# Browser automation test (if possible)\n@pytest.mark.selenium\ndef test_ui_connection(api_base_url):\n    driver = webdriver.Chrome()\n    try:\n        # Navigate to the UI\n        driver.get(\"http://localhost:3741\")\n        \n        # Wait for connection test to complete\n        connection_status = WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((By.ID, \"connection-status\"))\n        )\n        assert \"Connected\" in connection_status.text\n        \n        # Test search functionality\n        search_input = driver.find_element(By.ID, \"search-input\")\n        search_input.send_keys(\"test query\")\n        search_button = driver.find_element(By.ID, \"search-button\")\n        search_button.click()\n        \n        # Wait for results\n        results = WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((By.CLASS_NAME, \"search-results\"))\n        )\n        assert results.is_displayed()\n    finally:\n        driver.quit()\n```",
+        "testStrategy": "Run the integration tests against a running instance of the HTTP API server. Verify that all tests pass. Test with both mock data and real data if possible. Test error scenarios and recovery. If browser automation is used, verify that the UI components work correctly with the API.",
+        "priority": "high",
+        "dependencies": [
+          11,
+          16
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 18,
+        "title": "Update Docker Configuration",
+        "description": "Update Docker configuration to support the HTTP API.",
+        "details": "Update the Docker configuration to:\n1. Expose the HTTP API port (8051)\n2. Configure CORS settings for production\n3. Set up environment variables for API configuration\n4. Configure logging and monitoring\n\nUpdate docker-compose.yml and Dockerfile as needed. Ensure that the HTTP API is properly configured in the Docker environment. Example:\n```yaml\n# docker-compose.yml\nservices:\n  mcp-crawl4ai:\n    build:\n      context: .\n      dockerfile: Dockerfile\n    ports:\n      - \"8051:8051\"\n    environment:\n      - ENABLE_HTTP_API=true\n      - CORS_ORIGINS=http://localhost:3741,https://your-production-domain.com\n      - API_RATE_LIMIT=60\n      - LOG_LEVEL=info\n    volumes:\n      - ./data:/app/data\n    networks:\n      - crawl4ai-network\n\n  ui:\n    build:\n      context: ./ui\n      dockerfile: Dockerfile\n    ports:\n      - \"3741:80\"\n    depends_on:\n      - mcp-crawl4ai\n    networks:\n      - crawl4ai-network\n\nnetworks:\n  crawl4ai-network:\n```\n\n```dockerfile\n# Dockerfile\nFROM python:3.9-slim\n\nWORKDIR /app\n\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\n\nCOPY src/ ./src/\n\nEXPOSE 8051\n\nCMD [\"python\", \"-m\", \"src.crawl4ai_mcp\"]\n```",
+        "testStrategy": "Test the Docker configuration by building and running the containers. Verify that the HTTP API is accessible on port 8051. Test that CORS is correctly configured for the UI. Test that environment variables are correctly passed to the application. Test that the UI can connect to the API in the Docker environment.",
+        "priority": "high",
+        "dependencies": [
+          11,
+          12,
+          13,
+          14
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 19,
+        "title": "Implement Performance Monitoring",
+        "description": "Add performance monitoring capabilities to the HTTP API.",
+        "details": "Implement performance monitoring for the HTTP API including:\n1. Request timing and throughput metrics\n2. Endpoint-specific performance tracking\n3. MCP tool execution time tracking\n4. Memory usage monitoring\n\nImplement using a combination of middleware and explicit timing code. Consider using a monitoring library like prometheus_client for metrics collection. Example:\n```python\nfrom fastapi import FastAPI, Request\nfrom starlette.middleware.base import BaseHTTPMiddleware\nimport time\nfrom prometheus_client import Counter, Histogram, start_http_server\n\n# Define metrics\nREQUEST_COUNT = Counter(\"http_requests_total\", \"Total HTTP requests\", [\"method\", \"endpoint\", \"status\"])\nREQUEST_LATENCY = Histogram(\"http_request_duration_seconds\", \"HTTP request latency\", [\"method\", \"endpoint\"])\nMCP_TOOL_LATENCY = Histogram(\"mcp_tool_duration_seconds\", \"MCP tool execution time\", [\"tool\"])\n\nclass PerformanceMonitoringMiddleware(BaseHTTPMiddleware):\n    async def dispatch(self, request: Request, call_next):\n        start_time = time.time()\n        \n        # Get endpoint for metrics\n        endpoint = request.url.path\n        method = request.method\n        \n        try:\n            response = await call_next(request)\n            duration = time.time() - start_time\n            \n            # Record metrics\n            REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=response.status_code).inc()\n            REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(duration)\n            \n            # Add timing header\n            response.headers[\"X-Process-Time\"] = str(duration)\n            \n            return response\n        except Exception as e:\n            duration = time.time() - start_time\n            REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=500).inc()\n            REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(duration)\n            raise\n\ndef add_performance_monitoring(app: FastAPI, metrics_port=8000):\n    # Start Prometheus metrics server\n    start_http_server(metrics_port)\n    \n    # Add middleware\n    app.add_middleware(PerformanceMonitoringMiddleware)\n    \n# Function to time MCP tool execution\nasync def time_mcp_tool(tool_name, coroutine):\n    start_time = time.time()\n    try:\n        result = await coroutine\n        duration = time.time() - start_time\n        MCP_TOOL_LATENCY.labels(tool=tool_name).observe(duration)\n        return result\n    except Exception as e:\n        duration = time.time() - start_time\n        MCP_TOOL_LATENCY.labels(tool=tool_name).observe(duration)\n        raise\n```",
+        "testStrategy": "Test the performance monitoring by sending requests to the API and verifying that metrics are collected. Test that the metrics accurately reflect request timing and counts. Test that the monitoring doesn't significantly impact performance. If using Prometheus, verify that metrics are accessible on the metrics endpoint.",
+        "priority": "medium",
+        "dependencies": [
+          11,
+          12
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 20,
+        "title": "Implement Caching for Frequently Used Data",
+        "description": "Add caching for frequently accessed data to improve performance.",
+        "details": "Implement caching for:\n1. Sources list (from /api/sources endpoint)\n2. Common search queries\n3. Health check responses\n\nImplement using an in-memory cache with TTL (time-to-live) for development and Redis for production if available. Example:\n```python\nfrom functools import wraps\nimport time\nfrom typing import Dict, Any, Callable, Optional\n\n# Simple in-memory cache\nclass Cache:\n    def __init__(self, ttl_seconds=300):\n        self.cache: Dict[str, Dict[str, Any]] = {}\n        self.ttl_seconds = ttl_seconds\n        \n    def get(self, key: str) -> Optional[Any]:\n        if key in self.cache:\n            entry = self.cache[key]\n            if time.time() - entry[\"timestamp\"] < self.ttl_seconds:\n                return entry[\"data\"]\n            else:\n                # Expired\n                del self.cache[key]\n        return None\n        \n    def set(self, key: str, data: Any) -> None:\n        self.cache[key] = {\n            \"data\": data,\n            \"timestamp\": time.time()\n        }\n        \n    def invalidate(self, key: str) -> None:\n        if key in self.cache:\n            del self.cache[key]\n            \n    def clear(self) -> None:\n        self.cache.clear()\n\n# Create cache instance\ncache = Cache()\n\n# Decorator for caching function results\ndef cached(key_prefix: str, ttl_seconds: Optional[int] = None):\n    def decorator(func):\n        @wraps(func)\n        async def wrapper(*args, **kwargs):\n            # Generate cache key\n            key_parts = [key_prefix]\n            key_parts.extend([str(arg) for arg in args])\n            key_parts.extend([f\"{k}={v}\" for k, v in sorted(kwargs.items())])\n            cache_key = \":\".join(key_parts)\n            \n            # Check cache\n            cached_result = cache.get(cache_key)\n            if cached_result is not None:\n                return cached_result\n                \n            # Call function\n            result = await func(*args, **kwargs)\n            \n            # Cache result\n            if ttl_seconds is not None:\n                old_ttl = cache.ttl_seconds\n                cache.ttl_seconds = ttl_seconds\n                cache.set(cache_key, result)\n                cache.ttl_seconds = old_ttl\n            else:\n                cache.set(cache_key, result)\n                \n            return result\n        return wrapper\n    return decorator\n\n# Example usage\n@cached(\"sources\", ttl_seconds=600)\nasync def get_sources():\n    # Implementation...\n```",
+        "testStrategy": "Test the caching implementation by making repeated requests to cached endpoints and verifying that subsequent requests are faster. Test that cache invalidation works correctly when data changes. Test that the cache respects TTL settings. Test that the cache doesn't return stale data after expiration.",
+        "priority": "medium",
+        "dependencies": [
+          8,
+          9,
+          10,
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 21,
+        "title": "Implement Graceful Shutdown Handling",
+        "description": "Add graceful shutdown handling to ensure clean server termination.",
+        "details": "Implement graceful shutdown handling that:\n1. Catches termination signals (SIGTERM, SIGINT)\n2. Completes in-flight requests before shutting down\n3. Closes database connections and resources properly\n4. Logs shutdown process\n\nImplement using signal handlers and FastAPI's shutdown event handlers. Example:\n```python\nimport signal\nimport sys\nimport asyncio\nimport logging\nfrom fastapi import FastAPI\n\nlogger = logging.getLogger(__name__)\n\nclass GracefulShutdown:\n    def __init__(self, app: FastAPI):\n        self.app = app\n        self.should_exit = False\n        self.force_exit = False\n        \n        # Register signal handlers\n        signal.signal(signal.SIGINT, self.handle_sigint)\n        signal.signal(signal.SIGTERM, self.handle_sigterm)\n        \n        # Register shutdown event\n        @app.on_event(\"shutdown\")\n        async def shutdown_event():\n            logger.info(\"Shutting down server...\")\n            await self.cleanup()\n            \n    def handle_sigint(self, sig, frame):\n        logger.info(\"Received SIGINT, initiating graceful shutdown...\")\n        if self.should_exit:\n            logger.warning(\"Received second SIGINT, forcing exit...\")\n            self.force_exit = True\n            sys.exit(1)\n        self.should_exit = True\n        self.initiate_shutdown()\n        \n    def handle_sigterm(self, sig, frame):\n        logger.info(\"Received SIGTERM, initiating graceful shutdown...\")\n        self.should_exit = True\n        self.initiate_shutdown()\n        \n    def initiate_shutdown(self):\n        # Trigger FastAPI shutdown event\n        asyncio.create_task(self.trigger_shutdown())\n        \n    async def trigger_shutdown(self):\n        # Wait for in-flight requests to complete (max 30 seconds)\n        for _ in range(30):\n            if self.force_exit:\n                break\n            await asyncio.sleep(1)\n            \n        # Trigger actual shutdown\n        if hasattr(self.app, \"shutdown\"):\n            await self.app.shutdown()\n            \n    async def cleanup(self):\n        # Close database connections\n        # Release resources\n        # Any other cleanup needed\n        logger.info(\"Cleanup completed\")\n\n# Usage\napp = FastAPI()\nshutdown_handler = GracefulShutdown(app)\n```",
+        "testStrategy": "Test graceful shutdown by sending SIGTERM and SIGINT signals to the server process. Verify that in-flight requests are completed before shutdown. Test that resources are properly cleaned up. Test that the server logs the shutdown process correctly.",
+        "priority": "medium",
+        "dependencies": [
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 22,
+        "title": "Create API Documentation Markdown",
+        "description": "Create comprehensive markdown documentation for the HTTP API.",
+        "details": "Create markdown documentation that includes:\n1. Overview of the API and its purpose\n2. Authentication requirements (if any)\n3. Detailed endpoint documentation with examples\n4. Error handling and status codes\n5. Rate limiting and performance considerations\n\nCreate a docs/api.md file with comprehensive documentation. Include curl examples for each endpoint. Example:\n```markdown\n# Crawl4AI MCP HTTP API Documentation\n\n## Overview\nThis API provides HTTP access to the Crawl4AI MCP server functionality, enabling browser-based UI access.\n\n## Base URL\n`http://localhost:8051/api`\n\n## Authentication\nCurrently, the API does not require authentication.\n\n## Endpoints\n\n### Health Check\n`GET /api/health`\n\nChecks the health and status of the MCP server.\n\n**Response:**\n```json\n{\n  \"status\": \"healthy\",\n  \"version\": \"1.0.0\",\n  \"uptime\": 3600,\n  \"mcp_tools_available\": true\n}\n```\n\n**Example:**\n```bash\ncurl http://localhost:8051/api/health\n```\n\n### Get Available Sources\n`GET /api/sources`\n\nRetrieves all available data sources from the crawl database.\n\n**Response:**\n```json\n{\n  \"sources\": [\n    {\n      \"domain\": \"example.com\",\n      \"count\": 150,\n      \"last_updated\": \"2025-01-15T10:30:00Z\",\n      \"description\": \"Documentation site\"\n    }\n  ]\n}\n```\n\n**Example:**\n```bash\ncurl http://localhost:8051/api/sources\n```\n\n### Search Content\n`GET /api/search`\n\nPerforms semantic search using RAG functionality.\n\n**Parameters:**\n- `query` (required): Search query string\n- `source` (optional): Filter by specific source domain\n- `match_count` (optional): Number of results to return (default: 10)\n\n**Response:**\n```json\n{\n  \"results\": [\n    {\n      \"content\": \"Matching text content...\",\n      \"source\": \"example.com\",\n      \"score\": 0.95,\n      \"metadata\": {\n        \"url\": \"https://example.com/page\",\n        \"title\": \"Page Title\"\n      }\n    }\n  ],\n  \"query\": \"original search query\",\n  \"total_results\": 5\n}\n```\n\n**Example:**\n```bash\ncurl \"http://localhost:8051/api/search?query=example&source=example.com&match_count=5\"\n```\n\n## Error Handling\n\nThe API returns standard HTTP status codes and a consistent error format:\n\n```json\n{\n  \"error\": {\n    \"code\": \"ERROR_CODE\",\n    \"message\": \"Human readable error description\",\n    \"details\": \"Additional technical details if available\"\n  }\n}\n```\n\n### Common Status Codes\n- 200: Successful operation\n- 400: Bad request (invalid parameters)\n- 404: Endpoint not found\n- 500: Internal server error\n- 503: Service unavailable (MCP tools not responding)\n\n## Rate Limiting\n\nThe API is rate limited to 60 requests per minute per IP address. If you exceed this limit, you'll receive a 429 Too Many Requests response with a Retry-After header.\n```",
+        "testStrategy": "Review the documentation for accuracy and completeness. Verify that all endpoints are documented with correct parameters and response formats. Test the curl examples to ensure they work correctly. Have team members review the documentation for clarity and usability.",
+        "priority": "medium",
+        "dependencies": [
+          7,
+          8,
+          9,
+          10,
+          11
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 23,
+        "title": "Implement Environment Configuration",
+        "description": "Create a flexible environment configuration system for the HTTP API.",
+        "details": "Implement an environment configuration system that:\n1. Loads configuration from environment variables\n2. Provides sensible defaults for all settings\n3. Validates configuration values\n4. Supports different environments (development, production)\n\nImplement using Python's os module and Pydantic for validation. Create a src/config.py file with configuration classes. Example:\n```python\nimport os\nfrom pydantic import BaseSettings, Field, validator\nfrom typing import List, Optional\n\nclass APISettings(BaseSettings):\n    # Server settings\n    host: str = Field(default=\"0.0.0.0\", env=\"API_HOST\")\n    port: int = Field(default=8051, env=\"API_PORT\")\n    debug: bool = Field(default=False, env=\"API_DEBUG\")\n    \n    # CORS settings\n    cors_origins: List[str] = Field(default=[\"*\"], env=\"CORS_ORIGINS\")\n    \n    # Rate limiting\n    rate_limit_enabled: bool = Field(default=True, env=\"RATE_LIMIT_ENABLED\")\n    rate_limit_requests: int = Field(default=60, env=\"RATE_LIMIT_REQUESTS\")\n    \n    # Logging\n    log_level: str = Field(default=\"info\", env=\"LOG_LEVEL\")\n    \n    # Cache settings\n    cache_ttl: int = Field(default=300, env=\"CACHE_TTL\")\n    \n    # MCP settings\n    mcp_timeout: int = Field(default=30, env=\"MCP_TIMEOUT\")\n    \n    @validator(\"cors_origins\", pre=True)\n    def parse_cors_origins(cls, v):\n        if isinstance(v, str):\n            return [origin.strip() for origin in v.split(\",\")]\n        return v\n        \n    @validator(\"log_level\")\n    def validate_log_level(cls, v):\n        valid_levels = [\"debug\", \"info\", \"warning\", \"error\", \"critical\"]\n        if v.lower() not in valid_levels:\n            raise ValueError(f\"Log level must be one of {valid_levels}\")\n        return v.lower()\n        \n    class Config:\n        env_file = \".env\"\n        case_sensitive = False\n\n# Create settings instance\nsettings = APISettings()\n\n# Function to configure logging based on settings\ndef configure_logging():\n    import logging\n    log_level = getattr(logging, settings.log_level.upper())\n    logging.basicConfig(\n        level=log_level,\n        format=\"%(asctime)s - %(name)s - %(levelname)s - %(message)s\"\n    )\n```",
+        "testStrategy": "Test the configuration system with different environment variables. Verify that defaults are used when variables are not set. Test validation by setting invalid values. Test that the configuration is correctly applied to the application. Test loading from .env file if implemented.",
+        "priority": "high",
+        "dependencies": [
+          2
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 24,
+        "title": "Perform Load Testing and Optimization",
+        "description": "Conduct load testing and optimize the HTTP API for performance.",
+        "details": "Perform load testing to identify performance bottlenecks and optimize the API. Tasks include:\n1. Setting up load testing tools (e.g., locust, k6, or Apache Bench)\n2. Creating test scenarios for different endpoints\n3. Identifying performance bottlenecks\n4. Implementing optimizations\n\nFocus on optimizing:\n- Request handling efficiency\n- MCP tool execution time\n- Response formatting\n- Caching effectiveness\n\nExample load testing script with k6:\n```javascript\nimport http from 'k6/http';\nimport { sleep, check } from 'k6';\n\nexport const options = {\n  stages: [\n    { duration: '30s', target: 10 },  // Ramp up to 10 users\n    { duration: '1m', target: 10 },   // Stay at 10 users for 1 minute\n    { duration: '30s', target: 50 },  // Ramp up to 50 users\n    { duration: '1m', target: 50 },   // Stay at 50 users for 1 minute\n    { duration: '30s', target: 0 },   // Ramp down to 0 users\n  ],\n  thresholds: {\n    http_req_duration: ['p(95)<500'],  // 95% of requests should be below 500ms\n  },\n};\n\nexport default function () {\n  // Test health endpoint\n  const healthRes = http.get('http://localhost:8051/api/health');\n  check(healthRes, {\n    'health status is 200': (r) => r.status === 200,\n    'health response has status field': (r) => r.json().status === 'healthy',\n  });\n  \n  // Test sources endpoint\n  const sourcesRes = http.get('http://localhost:8051/api/sources');\n  check(sourcesRes, {\n    'sources status is 200': (r) => r.status === 200,\n    'sources response has sources array': (r) => Array.isArray(r.json().sources),\n  });\n  \n  // Test search endpoint with random queries\n  const queries = ['python', 'javascript', 'api', 'fastapi', 'react'];\n  const randomQuery = queries[Math.floor(Math.random() * queries.length)];\n  const searchRes = http.get(`http://localhost:8051/api/search?query=${randomQuery}&match_count=5`);\n  check(searchRes, {\n    'search status is 200': (r) => r.status === 200,\n    'search response has results array': (r) => Array.isArray(r.json().results),\n  });\n  \n  sleep(1);\n}\n```\n\nOptimization strategies:\n1. Add caching for expensive operations\n2. Use connection pooling for database connections\n3. Optimize response serialization\n4. Implement request batching if applicable\n5. Use async processing for non-blocking operations",
+        "testStrategy": "Run load tests with increasing load to identify breaking points. Measure response times, error rates, and resource usage. Compare performance before and after optimizations. Test with different concurrency levels to simulate real-world usage. Document performance metrics and improvements.",
+        "priority": "medium",
+        "dependencies": [
+          11,
+          19,
+          20
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 25,
+        "title": "Create Production Deployment Guide",
+        "description": "Create a comprehensive guide for deploying the HTTP API in production.",
+        "details": "Create a production deployment guide that covers:\n1. System requirements and prerequisites\n2. Installation and setup instructions\n3. Configuration options and environment variables\n4. Security considerations\n5. Monitoring and maintenance\n6. Troubleshooting common issues\n\nCreate a docs/deployment.md file with detailed instructions. Include Docker and non-Docker deployment options. Example:\n```markdown\n# Crawl4AI MCP HTTP API Deployment Guide\n\n## System Requirements\n- Python 3.9 or higher\n- Docker and Docker Compose (for containerized deployment)\n- 2GB RAM minimum (4GB recommended)\n- 10GB disk space\n\n## Installation\n\n### Docker Deployment (Recommended)\n\n1. Clone the repository:\n   ```bash\n   git clone https://github.com/your-org/crawl4ai-mcp.git\n   cd crawl4ai-mcp\n   ```\n\n2. Configure environment variables:\n   ```bash\n   cp .env.example .env\n   # Edit .env with your configuration\n   ```\n\n3. Build and start the containers:\n   ```bash\n   docker-compose up -d\n   ```\n\n4. Verify the deployment:\n   ```bash\n   curl http://localhost:8051/api/health\n   ```\n\n### Manual Deployment\n\n1. Clone the repository:\n   ```bash\n   git clone https://github.com/your-org/crawl4ai-mcp.git\n   cd crawl4ai-mcp\n   ```\n\n2. Create a virtual environment:\n   ```bash\n   python -m venv venv\n   source venv/bin/activate  # On Windows: venv\\Scripts\\activate\n   ```\n\n3. Install dependencies:\n   ```bash\n   pip install -r requirements.txt\n   ```\n\n4. Configure environment variables:\n   ```bash\n   cp .env.example .env\n   # Edit .env with your configuration\n   ```\n\n5. Start the server:\n   ```bash\n   python -m src.crawl4ai_mcp\n   ```\n\n## Configuration Options\n\n### Environment Variables\n\n| Variable | Description | Default |\n|----------|-------------|--------|\n| `API_HOST` | Host to bind the server | `0.0.0.0` |\n| `API_PORT` | Port to bind the server | `8051` |\n| `CORS_ORIGINS` | Comma-separated list of allowed origins | `*` |\n| `RATE_LIMIT_ENABLED` | Enable rate limiting | `true` |\n| `RATE_LIMIT_REQUESTS` | Requests per minute per IP | `60` |\n| `LOG_LEVEL` | Logging level | `info` |\n| `CACHE_TTL` | Cache time-to-live in seconds | `300` |\n| `MCP_TIMEOUT` | MCP tool timeout in seconds | `30` |\n\n## Security Considerations\n\n1. **CORS Configuration**: In production, set specific allowed origins instead of using the wildcard `*`.\n\n2. **Rate Limiting**: Adjust rate limits based on your expected traffic and server capacity.\n\n3. **Firewall Rules**: Configure firewall rules to restrict access to the API server.\n\n4. **HTTPS**: Use HTTPS in production by configuring a reverse proxy like Nginx with SSL certificates.\n\n## Monitoring and Maintenance\n\n### Logging\nLogs are written to stdout/stderr and can be viewed with:\n```bash\ndocker-compose logs -f mcp-crawl4ai\n```\n\n### Metrics\nPrometheus metrics are available at:\n```\nhttp://localhost:8051/metrics\n```\n\n### Health Checks\nUse the health endpoint for monitoring:\n```bash\ncurl http://localhost:8051/api/health\n```\n\n## Troubleshooting\n\n### Common Issues\n\n1. **Connection Refused**\n   - Check if the server is running\n   - Verify port configuration\n   - Check firewall settings\n\n2. **CORS Errors**\n   - Verify CORS_ORIGINS configuration\n   - Check browser console for specific CORS errors\n\n3. **Slow Response Times**\n   - Check server resource usage\n   - Verify database connection pool settings\n   - Consider increasing cache TTL\n\n4. **Out of Memory Errors**\n   - Increase container memory limits\n   - Check for memory leaks\n   - Optimize large response handling\n```",
+        "testStrategy": "Review the deployment guide for accuracy and completeness. Test the deployment process on a clean system following the guide. Verify that all configuration options work as documented. Test troubleshooting steps for common issues. Have team members review the guide for clarity and usability.",
+        "priority": "medium",
+        "dependencies": [
+          11,
+          18,
+          23
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-08-12T02:51:56.687Z",
+      "updated": "2025-08-12T02:51:56.687Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

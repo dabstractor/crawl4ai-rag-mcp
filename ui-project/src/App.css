@@ -1,0 +1,40 @@
+.App {
+  text-align: center;
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+}
+
+.App-header h1 {
+  margin: 0;
+}
+
+.App-header p {
+  margin: 10px 0 0 0;
+  opacity: 0.8;
+}
+
+main {
+  min-height: calc(100vh - 120px);
+}
+
+.tab-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: left;
+}
+
+.tab-content h2 {
+  color: #282c34;
+  border-bottom: 2px solid #61dafb;
+  padding-bottom: 10px;
+}
+
+.tab-content p {
+  color: #333;
+  line-height: 1.6;
+}

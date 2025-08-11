@@ -1,0 +1,61 @@
+# Task ID: 16
+# Title: Create Unit Tests for API Endpoints
+# Status: pending
+# Dependencies: 7, 8, 9, 10, 11
+# Priority: high
+# Description: Implement comprehensive unit tests for all HTTP API endpoints.
+# Details:
+Create unit tests for all HTTP API endpoints using pytest and FastAPI's TestClient. Test:
+1. Successful responses with various parameters
+2. Error handling for invalid parameters
+3. Error handling for MCP tool failures
+4. CORS headers and preflight requests
+
+Implement tests using pytest fixtures for setup and teardown. Use mocking to simulate MCP tool responses. Example:
+```python
+import pytest
+from fastapi.testclient import TestClient
+from unittest.mock import patch, MagicMock
+
+from ..main import app  # Import your FastAPI app
+
+@pytest.fixture
+def client():
+    return TestClient(app)
+
+@pytest.fixture
+def mock_mcp_tools():
+    with patch("your_module.mcp.tools") as mock_tools:
+        # Configure mock responses
+        mock_tools.get_available_sources.return_value = [
+            {"domain": "example.com", "count": 150, "last_updated": "2025-01-15T10:30:00Z"}
+        ]
+        yield mock_tools
+
+def test_health_endpoint(client):
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    data = response.json()
+    assert "status" in data
+    assert data["status"] == "healthy"
+
+def test_sources_endpoint(client, mock_mcp_tools):
+    response = client.get("/api/sources")
+    assert response.status_code == 200
+    data = response.json()
+    assert "sources" in data
+    assert len(data["sources"]) == 1
+    assert data["sources"][0]["domain"] == "example.com"
+
+def test_search_endpoint_validation(client):
+    # Test missing query parameter
+    response = client.get("/api/search")
+    assert response.status_code == 422  # Validation error
+    
+    # Test invalid match_count
+    response = client.get("/api/search?query=test&match_count=0")
+    assert response.status_code == 422  # Validation error
+```
+
+# Test Strategy:
+Run the unit tests using pytest. Verify that all tests pass. Measure code coverage to ensure that all code paths are tested. Test edge cases and error scenarios. Verify that the tests correctly simulate MCP tool responses and failures.

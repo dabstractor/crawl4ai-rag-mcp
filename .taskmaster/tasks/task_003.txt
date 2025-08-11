@@ -1,0 +1,29 @@
+# Task ID: 3
+# Title: Implement CORS Middleware
+# Status: pending
+# Dependencies: 2
+# Priority: high
+# Description: Create CORS middleware to handle cross-origin requests from the browser-based UI.
+# Details:
+Implement the CORS middleware in src/api/middleware.py using FastAPI's CORSMiddleware. Configure the middleware to:
+1. Allow all origins initially for development ("*")
+2. Support environment variable configuration for production (CORS_ORIGINS)
+3. Allow GET, POST, OPTIONS methods
+4. Allow Content-Type and Authorization headers
+5. Handle preflight OPTIONS requests correctly
+
+Implementation should use FastAPI's built-in CORSMiddleware with proper configuration. Include a function to add the middleware to the FastAPI app instance. Example:
+```python
+def add_cors_middleware(app: FastAPI):
+    origins = os.getenv("CORS_ORIGINS", "*").split(",")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
+    )
+```
+
+# Test Strategy:
+Test the CORS middleware by sending requests with different Origin headers and verifying that the appropriate CORS headers are returned. Test preflight OPTIONS requests to ensure they're handled correctly. Verify that environment variable configuration works by setting different CORS_ORIGINS values.

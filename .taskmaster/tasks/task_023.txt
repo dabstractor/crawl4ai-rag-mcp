@@ -1,0 +1,73 @@
+# Task ID: 23
+# Title: Implement Environment Configuration
+# Status: pending
+# Dependencies: 2
+# Priority: high
+# Description: Create a flexible environment configuration system for the HTTP API.
+# Details:
+Implement an environment configuration system that:
+1. Loads configuration from environment variables
+2. Provides sensible defaults for all settings
+3. Validates configuration values
+4. Supports different environments (development, production)
+
+Implement using Python's os module and Pydantic for validation. Create a src/config.py file with configuration classes. Example:
+```python
+import os
+from pydantic import BaseSettings, Field, validator
+from typing import List, Optional
+
+class APISettings(BaseSettings):
+    # Server settings
+    host: str = Field(default="0.0.0.0", env="API_HOST")
+    port: int = Field(default=8051, env="API_PORT")
+    debug: bool = Field(default=False, env="API_DEBUG")
+    
+    # CORS settings
+    cors_origins: List[str] = Field(default=["*"], env="CORS_ORIGINS")
+    
+    # Rate limiting
+    rate_limit_enabled: bool = Field(default=True, env="RATE_LIMIT_ENABLED")
+    rate_limit_requests: int = Field(default=60, env="RATE_LIMIT_REQUESTS")
+    
+    # Logging
+    log_level: str = Field(default="info", env="LOG_LEVEL")
+    
+    # Cache settings
+    cache_ttl: int = Field(default=300, env="CACHE_TTL")
+    
+    # MCP settings
+    mcp_timeout: int = Field(default=30, env="MCP_TIMEOUT")
+    
+    @validator("cors_origins", pre=True)
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",")]
+        return v
+        
+    @validator("log_level")
+    def validate_log_level(cls, v):
+        valid_levels = ["debug", "info", "warning", "error", "critical"]
+        if v.lower() not in valid_levels:
+            raise ValueError(f"Log level must be one of {valid_levels}")
+        return v.lower()
+        
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
+
+# Create settings instance
+settings = APISettings()
+
+# Function to configure logging based on settings
+def configure_logging():
+    import logging
+    log_level = getattr(logging, settings.log_level.upper())
+    logging.basicConfig(
+        level=log_level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+```
+
+# Test Strategy:
+Test the configuration system with different environment variables. Verify that defaults are used when variables are not set. Test validation by setting invalid values. Test that the configuration is correctly applied to the application. Test loading from .env file if implemented.

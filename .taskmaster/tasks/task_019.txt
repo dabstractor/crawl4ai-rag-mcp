@@ -1,0 +1,74 @@
+# Task ID: 19
+# Title: Implement Performance Monitoring
+# Status: pending
+# Dependencies: 11, 12
+# Priority: medium
+# Description: Add performance monitoring capabilities to the HTTP API.
+# Details:
+Implement performance monitoring for the HTTP API including:
+1. Request timing and throughput metrics
+2. Endpoint-specific performance tracking
+3. MCP tool execution time tracking
+4. Memory usage monitoring
+
+Implement using a combination of middleware and explicit timing code. Consider using a monitoring library like prometheus_client for metrics collection. Example:
+```python
+from fastapi import FastAPI, Request
+from starlette.middleware.base import BaseHTTPMiddleware
+import time
+from prometheus_client import Counter, Histogram, start_http_server
+
+# Define metrics
+REQUEST_COUNT = Counter("http_requests_total", "Total HTTP requests", ["method", "endpoint", "status"])
+REQUEST_LATENCY = Histogram("http_request_duration_seconds", "HTTP request latency", ["method", "endpoint"])
+MCP_TOOL_LATENCY = Histogram("mcp_tool_duration_seconds", "MCP tool execution time", ["tool"])
+
+class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        start_time = time.time()
+        
+        # Get endpoint for metrics
+        endpoint = request.url.path
+        method = request.method
+        
+        try:
+            response = await call_next(request)
+            duration = time.time() - start_time
+            
+            # Record metrics
+            REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=response.status_code).inc()
+            REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(duration)
+            
+            # Add timing header
+            response.headers["X-Process-Time"] = str(duration)
+            
+            return response
+        except Exception as e:
+            duration = time.time() - start_time
+            REQUEST_COUNT.labels(method=method, endpoint=endpoint, status=500).inc()
+            REQUEST_LATENCY.labels(method=method, endpoint=endpoint).observe(duration)
+            raise
+
+def add_performance_monitoring(app: FastAPI, metrics_port=8000):
+    # Start Prometheus metrics server
+    start_http_server(metrics_port)
+    
+    # Add middleware
+    app.add_middleware(PerformanceMonitoringMiddleware)
+    
+# Function to time MCP tool execution
+async def time_mcp_tool(tool_name, coroutine):
+    start_time = time.time()
+    try:
+        result = await coroutine
+        duration = time.time() - start_time
+        MCP_TOOL_LATENCY.labels(tool=tool_name).observe(duration)
+        return result
+    except Exception as e:
+        duration = time.time() - start_time
+        MCP_TOOL_LATENCY.labels(tool=tool_name).observe(duration)
+        raise
+```
+
+# Test Strategy:
+Test the performance monitoring by sending requests to the API and verifying that metrics are collected. Test that the metrics accurately reflect request timing and counts. Test that the monitoring doesn't significantly impact performance. If using Prometheus, verify that metrics are accessible on the metrics endpoint.

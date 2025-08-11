@@ -1,0 +1,477 @@
+# Product Requirements Document: HTTP API Bridge for Crawl4AI MCP Server
+
+## Executive Summary
+
+This project implements HTTP API endpoints on the Crawl4AI MCP (Model Context Protocol) server to enable browser-based UI access. The current MCP server uses SSE/stdio protocols that are incompatible with browser CORS policies, requiring an HTTP REST API bridge to enable the React-based Crawl4AI Visualizer UI to communicate with the server.
+
+## Project Goals
+
+### Primary Objectives
+1. **Browser Compatibility**: Enable browser-based React UI to communicate with MCP server
+2. **API Bridge Implementation**: Create HTTP REST API endpoints that wrap existing MCP tools
+3. **Production Integration**: Complete Docker Compose integration with nginx-served production UI
+4. **CORS Support**: Add proper CORS headers for cross-origin browser requests
+5. **Seamless Transition**: Maintain all existing MCP functionality while adding HTTP layer
+
+### Secondary Objectives
+1. **Error Handling**: Robust error handling and status codes for HTTP responses
+2. **Performance**: Efficient request/response handling with proper timeouts
+3. **Documentation**: Clear API documentation for endpoint usage
+4. **Testing**: Comprehensive testing of HTTP API endpoints
+5. **Monitoring**: Request logging and performance monitoring capabilities
+
+## Background and Context
+
+### Current Architecture
+- **MCP Server**: FastMCP-based server using SSE/stdio transport protocols
+- **UI Application**: React-based visualizer for Crawl4AI RAG functionality
+- **Transport Issue**: Browser CORS policies prevent direct MCP protocol access
+- **Docker Integration**: Production deployment using nginx and Docker Compose
+
+### Technical Constraints
+- MCP protocol is not directly accessible from browsers due to CORS restrictions
+- FastMCP framework has specific API patterns that must be preserved
+- Existing UI expects HTTP REST API endpoints for data fetching
+- Production deployment requires nginx-served static files on port 3741
+- MCP server runs on port 8051 in Docker environment
+
+### Previous Work Completed
+1. **Docker Integration**: Successfully integrated UI into Docker Compose system
+2. **Port Configuration**: UI configured to run on port 3741 to avoid conflicts
+3. **UI Service Layer**: Completely rewritten mcpService.js for HTTP communication
+4. **Environment Configuration**: Updated .env and config files for new API endpoints
+5. **Component Updates**: Fixed ConnectionTest component and removed SSE dependencies
+6. **Production Build**: Created Dockerfile with nginx multi-stage build
+7. **CORS Investigation**: Identified browser CORS restrictions as core blocker
+
+## Technical Requirements
+
+### Core API Endpoints Required
+
+#### 1. Sources Endpoint (`GET /api/sources`)
+**Purpose**: Retrieve all available data sources from the crawl database
+**MCP Tool**: `get_available_sources`
+**Request**: No parameters required
+**Response Format**:
+```json
+{
+  "sources": [
+    {
+      "domain": "example.com",
+      "count": 150,
+      "last_updated": "2025-01-15T10:30:00Z",
+      "description": "Documentation site"
+    }
+  ]
+}
+```
+**Error Handling**: Return 500 with error message if MCP tool fails
+
+#### 2. Search/RAG Query Endpoint (`GET /api/search`)
+**Purpose**: Perform semantic search using RAG functionality
+**MCP Tool**: `perform_rag_query`
+**Request Parameters**:
+- `query` (required): Search query string
+- `source` (optional): Filter by specific source domain
+- `match_count` (optional): Number of results to return (default: 10)
+**Response Format**:
+```json
+{
+  "results": [
+    {
+      "content": "Matching text content...",
+      "source": "example.com",
+      "score": 0.95,
+      "metadata": {
+        "url": "https://example.com/page",
+        "title": "Page Title"
+      }
+    }
+  ],
+  "query": "original search query",
+  "total_results": 5
+}
+```
+
+#### 3. Health Check Endpoint (`GET /api/health`)
+**Purpose**: Verify server status and connectivity
+**MCP Tool**: Internal server status check
+**Request**: No parameters
+**Response Format**:
+```json
+{
+  "status": "healthy",
+  "version": "1.0.0",
+  "uptime": 3600,
+  "mcp_tools_available": true
+}
+```
+
+#### 4. Code Examples Endpoint (`GET /api/code-examples`)
+**Purpose**: Search for code examples in the knowledge base
+**MCP Tool**: `search_code_examples`
+**Request Parameters**:
+- `query` (required): Code search query
+- `source_id` (optional): Filter by source identifier
+- `match_count` (optional): Number of examples to return
+**Response Format**:
+```json
+{
+  "examples": [
+    {
+      "code": "function example() { ... }",
+      "language": "javascript",
+      "source": "github.com/repo",
+      "description": "Example function implementation"
+    }
+  ]
+}
+```
+
+### CORS Configuration
+- **Access-Control-Allow-Origin**: `*` (or specific domains for production)
+- **Access-Control-Allow-Methods**: `GET, POST, OPTIONS`
+- **Access-Control-Allow-Headers**: `Content-Type, Authorization`
+- **Preflight Handling**: Support OPTIONS requests for CORS preflight
+
+### Error Response Standards
+All errors should follow consistent format:
+```json
+{
+  "error": {
+    "code": "INTERNAL_ERROR",
+    "message": "Human readable error description",
+    "details": "Additional technical details if available"
+  }
+}
+```
+
+### HTTP Status Codes
+- **200**: Successful operation
+- **400**: Bad request (invalid parameters)
+- **404**: Endpoint not found
+- **500**: Internal server error
+- **503**: Service unavailable (MCP tools not responding)
+
+## Implementation Architecture
+
+### FastMCP Integration Approach
+Since FastMCP doesn't expose the underlying FastAPI app directly, we need to use one of these approaches:
+
+#### Option 1: FastMCP Router Extension
+```python
+from fastmcp import FastMCP
+from fastapi import APIRouter, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
+# Create API router
+api_router = APIRouter(prefix="/api")
+
+@api_router.get("/sources")
+async def get_sources_http():
+    # Call MCP tool and return HTTP response
+    
+# Mount router to FastMCP app
+mcp.app.include_router(api_router)
+```
+
+#### Option 2: Separate FastAPI Instance
+```python
+from fastapi import FastAPI
+from fastmcp import FastMCP
+import asyncio
+
+# Run FastAPI alongside FastMCP
+api_app = FastAPI()
+mcp = FastMCP()
+
+# API endpoints in separate app
+# Use asyncio to run both servers
+```
+
+#### Option 3: FastMCP Hook System
+```python
+# Use FastMCP's built-in hook system if available
+@mcp.hook("before_request")
+async def handle_http_requests(request):
+    if request.path.startswith("/api/"):
+        # Handle HTTP API requests
+```
+
+### Server Architecture Components
+
+#### 1. HTTP Request Handler Layer
+- Parse incoming HTTP requests
+- Validate parameters and headers
+- Handle CORS preflight requests
+- Route to appropriate MCP tool handlers
+
+#### 2. MCP Tool Interface Layer
+- Call existing MCP tools with validated parameters
+- Handle MCP tool errors and exceptions
+- Transform MCP responses to HTTP format
+- Maintain MCP tool signatures and functionality
+
+#### 3. Response Formatting Layer
+- Convert MCP tool outputs to consistent JSON format
+- Add appropriate HTTP headers and status codes
+- Handle pagination and result limiting
+- Include metadata and timing information
+
+#### 4. Error Handling Layer
+- Catch and categorize different error types
+- Provide meaningful HTTP status codes
+- Log errors for debugging and monitoring
+- Return user-friendly error messages
+
+## UI Integration Requirements
+
+### Updated UI Service Integration
+The UI already has the HTTP-ready mcpService.js implemented:
+
+#### Current UI Endpoints Expected
+1. `GET /api/sources` - Used by `getAvailableSources()`
+2. `GET /api/search?query=...&source=...&match_count=...` - Used by `performRagQuery()`
+3. Connection testing via health check endpoints
+
+#### UI Components Requiring Server Support
+1. **ConnectionTest Component**: Needs `/api/health` endpoint for status checks
+2. **Sources Dropdown**: Needs `/api/sources` for populating source list
+3. **Search Interface**: Needs `/api/search` for RAG queries
+4. **Code Examples**: Needs `/api/code-examples` for code search functionality
+
+#### Response Format Compatibility
+The UI expects specific response formats that match the current mcpService.js implementation:
+- Sources: Array of source objects with domain, count, metadata
+- Search results: Array of result objects with content, source, score
+- Error handling: Consistent error object structure with success/error flags
+
+## Implementation Phases
+
+### Phase 1: Core HTTP API Foundation (Priority: Critical)
+1. **Server Setup**: Add HTTP API capability to existing FastMCP server
+2. **CORS Middleware**: Implement CORS support for browser access
+3. **Basic Routing**: Set up /api/* route handling infrastructure
+4. **Error Framework**: Establish consistent error handling patterns
+
+### Phase 2: Essential Endpoints (Priority: Critical)
+1. **Health Check**: Implement `/api/health` endpoint
+2. **Sources API**: Implement `/api/sources` wrapping `get_available_sources`
+3. **Search API**: Implement `/api/search` wrapping `perform_rag_query`
+4. **Basic Testing**: Verify endpoints work with curl/Postman
+
+### Phase 3: UI Integration Testing (Priority: High)
+1. **Connection Testing**: Verify UI ConnectionTest component works
+2. **Sources Integration**: Test source dropdown population
+3. **Search Integration**: Test RAG query functionality
+4. **Error Handling**: Verify UI error display and handling
+
+### Phase 4: Advanced Features (Priority: Medium)
+1. **Code Examples API**: Implement `/api/code-examples` endpoint
+2. **Additional MCP Tools**: Wrap remaining MCP tools as needed
+3. **Performance Optimization**: Add caching and optimization
+4. **Request Logging**: Add comprehensive logging and monitoring
+
+### Phase 5: Production Hardening (Priority: Medium)
+1. **Security Headers**: Add comprehensive security headers
+2. **Rate Limiting**: Implement API rate limiting
+3. **Documentation**: Create comprehensive API documentation
+4. **Performance Testing**: Load testing and optimization
+
+## File Structure and Implementation Details
+
+### Server Files to Modify
+```
+src/
+├── crawl4ai_mcp.py (main MCP server file)
+├── api/
+│   ├── __init__.py
+│   ├── endpoints.py (HTTP API endpoints)
+│   ├── middleware.py (CORS and error handling)
+│   └── responses.py (response formatting)
+└── utils/
+    └── http_helpers.py (HTTP utility functions)
+```
+
+### Key Implementation Files
+
+#### 1. API Endpoints Implementation (`src/api/endpoints.py`)
+```python
+from fastapi import APIRouter, HTTPException, Query
+from typing import Optional, List
+import logging
+
+router = APIRouter(prefix="/api")
+
+@router.get("/health")
+async def health_check():
+    """Health check endpoint for UI connectivity testing"""
+    
+@router.get("/sources")
+async def get_sources():
+    """Get available sources from crawl database"""
+    
+@router.get("/search")
+async def search_content(
+    query: str = Query(..., description="Search query"),
+    source: Optional[str] = Query(None, description="Filter by source"),
+    match_count: int = Query(10, description="Number of results")
+):
+    """Perform RAG search query"""
+```
+
+#### 2. CORS Middleware (`src/api/middleware.py`)
+```python
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+def add_cors_middleware(app: FastAPI):
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],  # Configure for production
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["*"],
+    )
+```
+
+#### 3. Response Formatting (`src/api/responses.py`)
+```python
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel
+
+class APIResponse(BaseModel):
+    success: bool
+    data: Optional[Any] = None
+    error: Optional[str] = None
+
+class SourceResponse(BaseModel):
+    domain: str
+    count: int
+    last_updated: Optional[str] = None
+    description: Optional[str] = None
+```
+
+### Docker Configuration Updates
+Update docker-compose.yml to ensure proper networking:
+```yaml
+services:
+  mcp-crawl4ai:
+    ports:
+      - "8051:8051"
+    environment:
+      - ENABLE_HTTP_API=true
+      - CORS_ORIGINS=http://localhost:3741
+```
+
+## Testing Strategy
+
+### Unit Testing
+1. **Endpoint Testing**: Test each API endpoint individually
+2. **MCP Tool Integration**: Verify MCP tool calls work correctly
+3. **Error Handling**: Test error scenarios and response codes
+4. **CORS Functionality**: Verify CORS headers and preflight requests
+
+### Integration Testing
+1. **UI-API Integration**: Test complete UI workflow with API
+2. **Docker Environment**: Test in containerized environment
+3. **Cross-Origin Requests**: Verify browser access from UI domain
+4. **Performance Testing**: Load testing with multiple concurrent requests
+
+### Manual Testing Checklist
+- [ ] Health check endpoint returns 200 status
+- [ ] Sources endpoint returns valid source list
+- [ ] Search endpoint accepts queries and returns results
+- [ ] CORS headers present in all responses
+- [ ] UI connects successfully to API endpoints
+- [ ] Error responses formatted correctly
+- [ ] Connection Test component shows "connected" status
+- [ ] Source dropdown populates from API
+- [ ] Search functionality works end-to-end
+
+## Success Criteria
+
+### Critical Success Factors
+1. **UI Connectivity**: React UI successfully connects to MCP server via HTTP API
+2. **Functional Parity**: All existing MCP functionality accessible via HTTP
+3. **Production Ready**: Docker Compose deployment works reliably
+4. **CORS Compliance**: Browser security policies satisfied
+5. **Error Handling**: Graceful error handling and user feedback
+
+### Performance Metrics
+- API response time < 2 seconds for typical queries
+- UI loading time < 5 seconds on initial page load
+- Connection establishment < 1 second
+- Error recovery within 10 seconds of server restart
+
+### Quality Metrics
+- Zero breaking changes to existing MCP functionality
+- 100% test coverage for HTTP API endpoints
+- Comprehensive error handling for all failure scenarios
+- Clear documentation for API usage and troubleshooting
+
+## Risk Mitigation
+
+### Technical Risks
+1. **FastMCP Compatibility**: Risk of API changes breaking integration
+   - Mitigation: Use stable FastMCP APIs, version pinning
+2. **Performance Overhead**: HTTP layer adding latency
+   - Mitigation: Efficient request handling, caching where appropriate
+3. **Security Vulnerabilities**: CORS and HTTP exposure risks
+   - Mitigation: Proper CORS configuration, security headers, input validation
+
+### Implementation Risks
+1. **Timeline Pressure**: Complex integration taking longer than expected
+   - Mitigation: Phased implementation, MVP approach
+2. **Testing Complexity**: Difficult to test all integration scenarios
+   - Mitigation: Comprehensive test suite, manual testing protocols
+3. **Deployment Issues**: Docker environment configuration problems
+   - Mitigation: Thorough testing in production-like environment
+
+## Dependencies and Prerequisites
+
+### Technical Dependencies
+- FastMCP framework (current version)
+- FastAPI (for HTTP API layer)
+- Uvicorn (ASGI server)
+- Python asyncio (for async operations)
+- Docker and Docker Compose (for deployment)
+
+### External Dependencies
+- Supabase database (for RAG data storage)
+- Crawl4AI libraries (for content processing)
+- Browser support (modern browsers with CORS support)
+
+### Team Dependencies
+- Access to MCP server codebase
+- Understanding of existing MCP tool implementations
+- UI development skills for any required frontend changes
+- Docker and deployment expertise
+
+## Timeline and Milestones
+
+### Week 1: Foundation Setup
+- Day 1-2: FastMCP HTTP API integration research and setup
+- Day 3-4: CORS middleware implementation and testing
+- Day 5-7: Basic routing and error handling framework
+
+### Week 2: Core Implementation
+- Day 1-3: Health check and sources endpoints
+- Day 4-6: Search endpoint implementation
+- Day 7: Basic integration testing with UI
+
+### Week 3: Integration and Testing
+- Day 1-2: UI integration fixes and testing
+- Day 3-4: Code examples endpoint implementation
+- Day 5-7: Comprehensive testing and bug fixes
+
+### Week 4: Production Readiness
+- Day 1-2: Performance optimization and security hardening
+- Day 3-4: Documentation completion
+- Day 5-7: Final testing and deployment verification
+
+## Conclusion
+
+This HTTP API bridge project is essential for enabling browser-based access to the Crawl4AI MCP server functionality. The implementation will provide a clean separation between the MCP protocol layer and HTTP API layer while maintaining full functionality and performance. Success will be measured by seamless UI integration and reliable production deployment in the Docker Compose environment.
+
+The project builds on significant previous work including Docker integration, UI service layer rewriting, and environment configuration, requiring only the server-side HTTP API implementation to complete the full integration.

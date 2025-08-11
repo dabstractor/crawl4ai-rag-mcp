@@ -1,0 +1,48 @@
+# Task ID: 14
+# Title: Add Security Headers Middleware
+# Status: pending
+# Dependencies: 3, 11
+# Priority: medium
+# Description: Implement middleware to add security headers to all HTTP responses.
+# Details:
+In src/api/middleware.py, implement security headers middleware that adds:
+1. Content-Security-Policy headers
+2. X-Content-Type-Options: nosniff
+3. X-Frame-Options: DENY
+4. Strict-Transport-Security headers
+5. X-XSS-Protection headers
+
+Implement using FastAPI middleware. Make headers configurable via environment variables. Example:
+```python
+from fastapi import FastAPI
+from starlette.middleware.base import BaseHTTPMiddleware
+import os
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        response = await call_next(request)
+        
+        # Add security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        
+        # Add HSTS header if HTTPS is enabled
+        if os.getenv("ENABLE_HTTPS", "false").lower() == "true":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            
+        # Add CSP header
+        csp_value = os.getenv(
+            "CONTENT_SECURITY_POLICY",
+            "default-src 'self'; script-src 'self'; connect-src 'self'"
+        )
+        response.headers["Content-Security-Policy"] = csp_value
+        
+        return response
+
+def add_security_headers(app: FastAPI):
+    app.add_middleware(SecurityHeadersMiddleware)
+```
+
+# Test Strategy:
+Test the security headers middleware by sending requests and verifying that the responses include the correct security headers. Test that the headers can be configured via environment variables. Use security scanning tools to verify that the headers provide adequate protection.

@@ -1,0 +1,38 @@
+# Task ID: 11
+# Title: Integrate HTTP API with FastMCP Server
+# Status: pending
+# Dependencies: 1, 7, 8, 9, 10
+# Priority: high
+# Description: Integrate the HTTP API endpoints with the existing FastMCP server.
+# Details:
+Based on the research from Task 1, implement the chosen approach to integrate the HTTP API with the FastMCP server. This may involve:
+1. Extending the FastMCP router
+2. Creating a separate FastAPI instance
+3. Using the FastMCP hook system
+
+Modify the main server file (src/crawl4ai_mcp.py) to include the HTTP API endpoints. Ensure that the integration doesn't interfere with existing MCP functionality. Add configuration options to enable/disable the HTTP API. Example (for router extension approach):
+```python
+from fastmcp import FastMCP
+from fastapi import FastAPI
+import os
+
+from .api.endpoints import router as api_router
+from .api.middleware import add_cors_middleware, add_exception_handlers
+
+# Initialize FastMCP
+mcp = FastMCP()
+
+# Check if HTTP API is enabled
+if os.getenv("ENABLE_HTTP_API", "true").lower() == "true":
+    # Add API router to FastMCP app
+    mcp.app.include_router(api_router)
+    
+    # Add middleware
+    add_cors_middleware(mcp.app)
+    add_exception_handlers(mcp.app)
+    
+    print("HTTP API enabled on /api/*")
+```
+
+# Test Strategy:
+Test the integrated server by starting it and verifying that both the MCP functionality and HTTP API endpoints work correctly. Test that the HTTP API can be enabled/disabled via configuration. Verify that the integration doesn't break existing MCP functionality.

@@ -114,6 +114,7 @@ This is a **Docker-only solution** - no Python environment setup required!
 
 That's it! Your complete search, crawl, and RAG stack is now running:
 - **MCP Server**: http://localhost:8051
+- **Crawl4AI Visualizer UI**: http://localhost:3741
 - **SearXNG Search**: http://localhost:8080 (internal)
 - **Caddy Proxy**: Handles HTTPS and routing
 
@@ -121,7 +122,9 @@ That's it! Your complete search, crawl, and RAG stack is now running:
 
 The Docker Compose stack includes:
 - **MCP Crawl4AI Server** - Main application server
+- **Crawl4AI Visualizer UI** - Web interface for browsing crawled content
 - **SearXNG** - Private search engine instance
+- **PostgreSQL** - Vector database with pgvector extension
 - **Valkey** - Redis-compatible cache for SearXNG
 - **Caddy** - Reverse proxy with automatic HTTPS
 
@@ -369,6 +372,24 @@ docker compose restart mcp-crawl4ai
 ```
 
 The MCP server will be available at `http://localhost:8051` for SSE connections.
+
+## Web Interface
+
+The stack includes a comprehensive web interface for visualizing and interacting with crawled content:
+
+**🌐 Access the UI**: http://localhost:3741
+
+### Features
+
+- **📊 Dashboard**: Overview with key statistics and quick actions
+- **🔍 Semantic Search**: RAG-powered search with similarity scoring
+- **📄 Document Explorer**: Browse crawled documents with filtering
+- **🌐 Source Management**: View and manage content sources
+- **💻 Code Examples**: Browse code snippets (when `USE_AGENTIC_RAG=true`)
+- **📈 Data Visualization**: Charts and statistical insights
+- **🔌 Connection Test**: Debug MCP server connectivity
+
+The UI automatically connects to the MCP server and provides an intuitive interface for exploring crawled content without requiring technical knowledge.
 
 ## Integration with MCP Clients
 

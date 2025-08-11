@@ -1,0 +1,64 @@
+# Task ID: 9
+# Title: Implement Search/RAG Query Endpoint
+# Status: pending
+# Dependencies: 5, 6
+# Priority: high
+# Description: Create the /api/search endpoint to perform semantic search using RAG functionality.
+# Details:
+In src/api/endpoints.py, implement the search endpoint that:
+1. Accepts query parameters for search query, source filter, and match count
+2. Calls the MCP tool `perform_rag_query` with these parameters
+3. Formats the response according to the specified schema
+4. Handles errors and timeouts
+
+Implement as a GET endpoint at /api/search with query parameters. Validate input parameters before calling the MCP tool. Format the response using the SearchResponse model. Example:
+```python
+from fastapi import APIRouter, HTTPException, Query
+from typing import Optional
+from ..utils.http_helpers import async_with_timeout, validate_search_params
+from ..api.responses import SearchResponse
+
+@router.get("/search", response_model=SearchResponse)
+async def search_content(
+    query: str = Query(..., description="Search query"),
+    source: Optional[str] = Query(None, description="Filter by source"),
+    match_count: int = Query(10, ge=1, le=100, description="Number of results")
+):
+    """Perform RAG search query"""
+    try:
+        # Validate parameters
+        params = validate_search_params(query, source, match_count)
+        
+        # Call MCP tool
+        raw_results = await async_with_timeout(
+            mcp.tools.perform_rag_query(
+                query=params["query"],
+                source=params["source"],
+                match_count=params["match_count"]
+            ),
+            timeout_seconds=30  # Longer timeout for search
+        )
+        
+        # Format response
+        results = []
+        for result in raw_results:
+            results.append({
+                "content": result.get("content"),
+                "source": result.get("source"),
+                "score": result.get("score"),
+                "metadata": result.get("metadata", {})
+            })
+            
+        return {
+            "results": results,
+            "query": query,
+            "total_results": len(results)
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+```
+
+# Test Strategy:
+Test the search endpoint with various query parameters. Test with valid and invalid parameters. Verify that the endpoint correctly calls the MCP tool and formats the response. Test error scenarios and timeout scenarios. Verify that parameter validation works correctly.
