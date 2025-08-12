@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import './Navigation.css';
+import { Theme, getStoredTheme, storeTheme, applyTheme } from '../utils/theme';
 
 const Navigation = ({ activeTab, onTabChange }) => {
   const tabs = [
@@ -11,6 +12,25 @@ const Navigation = ({ activeTab, onTabChange }) => {
     { id: 'visualization', label: 'Visualization', icon: '📈' },
     { id: 'connection', label: 'Connection', icon: '🔌' }
   ];
+
+  const [theme, setTheme] = useState(() => getStoredTheme());
+
+  const handleThemeChange = (next) => {
+    setTheme(next);
+    storeTheme(next);
+    applyTheme(next);
+  };
+
+  const themeLabel = useMemo(() => {
+    switch (theme) {
+      case Theme.Light:
+        return 'Light';
+      case Theme.Dark:
+        return 'Dark';
+      default:
+        return 'System';
+    }
+  }, [theme]);
 
   return (
     <nav className="navigation">
@@ -26,6 +46,16 @@ const Navigation = ({ activeTab, onTabChange }) => {
             </button>
           </li>
         ))}
+        <li className="nav-item nav-theme">
+          <div className="theme-switcher">
+            <label className="theme-label" aria-label="Theme selector">{themeLabel}</label>
+            <div className="theme-buttons" role="group" aria-label="Theme selector">
+              <button className={`theme-btn ${theme === Theme.Light ? 'active' : ''}`} onClick={() => handleThemeChange(Theme.Light)} title="Light">🌞</button>
+              <button className={`theme-btn ${theme === Theme.System ? 'active' : ''}`} onClick={() => handleThemeChange(Theme.System)} title="System">🖥️</button>
+              <button className={`theme-btn ${theme === Theme.Dark ? 'active' : ''}`} onClick={() => handleThemeChange(Theme.Dark)} title="Dark">🌙</button>
+            </div>
+          </div>
+        </li>
       </ul>
     </nav>
   );

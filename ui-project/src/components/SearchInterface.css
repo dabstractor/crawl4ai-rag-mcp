@@ -5,16 +5,16 @@
 }
 
 .search-interface h2 {
-  color: #282c34;
-  border-bottom: 2px solid #61dafb;
+  color: var(--color-text-strong);
+  border-bottom: 2px solid var(--color-accent);
   padding-bottom: 10px;
 }
 
 .search-form {
-  background: white;
+  background: var(--color-surface);
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   margin-bottom: 20px;
 }
 
@@ -27,20 +27,22 @@
 .search-input {
   flex: 1;
   padding: 12px 15px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   font-size: 16px;
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #61dafb;
-  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.2);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.25);
 }
 
 .search-button {
-  background-color: #61dafb;
-  color: #282c34;
+  background-color: var(--color-accent);
+  color: var(--color-inverse-text);
   border: none;
   padding: 12px 20px;
   border-radius: 4px;
@@ -51,11 +53,11 @@
 }
 
 .search-button:hover:not(:disabled) {
-  background-color: #21a9c7;
+  background-color: var(--color-accent-hover);
 }
 
 .search-button:disabled {
-  background-color: #ccc;
+  background-color: #66666655;
   cursor: not-allowed;
 }
 
@@ -74,29 +76,30 @@
 
 .option-group label {
   font-weight: bold;
-  color: #282c34;
+  color: var(--color-text-strong);
   font-size: 14px;
 }
 
 .source-select,
 .count-select {
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   font-size: 14px;
-  background-color: white;
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
 
 .source-select:focus,
 .count-select:focus {
   outline: none;
-  border-color: #61dafb;
-  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.2);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.25);
 }
 
 .clear-button {
   background-color: #6c757d;
-  color: white;
+  color: var(--color-inverse-text);
   border: none;
   padding: 8px 15px;
   border-radius: 4px;
@@ -111,13 +114,13 @@
 }
 
 .clear-button:disabled {
-  background-color: #ccc;
+  background-color: #66666655;
   cursor: not-allowed;
 }
 
 .search-error {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: var(--color-error-bg);
+  color: var(--color-error-text);
   padding: 15px;
   border-radius: 4px;
   margin-bottom: 20px;
@@ -130,21 +133,21 @@
 .search-loading {
   text-align: center;
   padding: 20px;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .search-results {
-  background: white;
+  background: var(--color-surface);
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .search-results h3 {
-  color: #282c34;
+  color: var(--color-text-strong);
   margin: 0 0 20px 0;
   padding-bottom: 10px;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--color-border-soft);
 }
 
 .results-list {
@@ -154,14 +157,14 @@
 }
 
 .result-item {
-  border: 1px solid #eee;
+  border: 1px solid var(--color-border-soft);
   border-radius: 4px;
   padding: 15px;
   transition: box-shadow 0.2s;
 }
 
 .result-item:hover {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
 
 .result-header {
@@ -173,13 +176,13 @@
 
 .result-title {
   margin: 0;
-  color: #282c34;
+  color: var(--color-text-strong);
   font-size: 18px;
 }
 
 .similarity-score {
-  background-color: #e9ecef;
-  color: #495057;
+  background-color: var(--color-neutral-chip-bg);
+  color: var(--color-neutral-chip-text);
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 12px;
@@ -187,13 +190,13 @@
 }
 
 .result-source {
-  color: #6c757d;
+  color: var(--color-text-muted);
   font-size: 14px;
   margin-bottom: 8px;
 }
 
 .result-content {
-  color: #333;
+  color: var(--color-text);
   line-height: 1.5;
   margin-bottom: 10px;
 }
@@ -203,7 +206,7 @@
 }
 
 .result-url a {
-  color: #61dafb;
+  color: var(--color-accent);
   text-decoration: none;
 }
 

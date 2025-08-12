@@ -5,15 +5,15 @@
 }
 
 .code-example-browser h2 {
-  color: #282c34;
-  border-bottom: 2px solid #61dafb;
+  color: var(--color-text-strong);
+  border-bottom: 2px solid var(--color-accent);
   padding-bottom: 10px;
   margin: 0 0 10px 0;
 }
 
 .feature-note {
-  background-color: #fff3cd;
-  color: #856404;
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text);
   padding: 15px;
   border-radius: 4px;
   margin-bottom: 20px;
@@ -21,17 +21,17 @@
 }
 
 .feature-note code {
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
   padding: 2px 4px;
   border-radius: 3px;
   font-family: 'Courier New', Courier, monospace;
 }
 
 .browser-controls {
-  background: white;
+  background: var(--color-surface);
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   margin-bottom: 20px;
 }
 
@@ -42,15 +42,17 @@
 .search-input {
   width: 100%;
   padding: 12px 15px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   font-size: 16px;
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
 
 .search-input:focus {
   outline: none;
-  border-color: #61dafb;
-  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.2);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.25);
 }
 
 .filter-container {
@@ -62,21 +64,22 @@
 
 .source-filter {
   padding: 8px 12px;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color-border);
   border-radius: 4px;
   font-size: 14px;
-  background-color: white;
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
 
 .source-filter:focus {
   outline: none;
-  border-color: #61dafb;
-  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.2);
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(97, 218, 251, 0.25);
 }
 
 .clear-filters {
   background-color: #6c757d;
-  color: white;
+  color: var(--color-inverse-text);
   border: none;
   padding: 8px 15px;
   border-radius: 4px;
@@ -90,8 +93,8 @@
 }
 
 .error-message {
-  background-color: #f8d7da;
-  color: #721c24;
+  background-color: var(--color-error-bg);
+  color: var(--color-error-text);
   padding: 15px;
   border-radius: 4px;
   margin-bottom: 20px;
@@ -104,7 +107,7 @@
 .loading-message {
   text-align: center;
   padding: 40px 20px;
-  color: #666;
+  color: var(--color-text-muted);
 }
 
 .examples-grid {
@@ -114,15 +117,15 @@
 }
 
 .example-card {
-  background: white;
+  background: var(--color-surface);
   border-radius: 8px;
   padding: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   transition: box-shadow 0.2s;
 }
 
 .example-card:hover {
-  box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.25);
 }
 
 .example-header {
@@ -132,12 +135,12 @@
 .example-title {
   margin: 0 0 8px 0;
   font-size: 18px;
-  color: #282c34;
+  color: var(--color-text-strong);
 }
 
 .example-source {
-  background-color: #e9ecef;
-  color: #495057;
+  background-color: var(--color-neutral-chip-bg);
+  color: var(--color-neutral-chip-text);
   padding: 2px 8px;
   border-radius: 12px;
   font-size: 12px;
@@ -146,7 +149,7 @@
 
 .example-summary {
   margin-bottom: 15px;
-  color: #333;
+  color: var(--color-text);
   line-height: 1.5;
 }
 
@@ -159,7 +162,7 @@
 }
 
 .code-block {
-  background-color: #f8f9fa;
+  background-color: var(--color-surface-muted);
   border-radius: 4px;
   padding: 15px;
   overflow-x: auto;
@@ -170,7 +173,7 @@
   font-family: 'Courier New', Courier, monospace;
   font-size: 14px;
   line-height: 1.4;
-  color: #282c34;
+  color: var(--color-text-strong);
 }
 
 .example-actions {
@@ -179,8 +182,8 @@
 }
 
 .action-button {
-  background-color: #61dafb;
-  color: #282c34;
+  background-color: var(--color-accent);
+  color: var(--color-inverse-text);
   border: none;
   padding: 8px 12px;
   border-radius: 4px;
@@ -191,14 +194,14 @@
 }
 
 .action-button:hover {
-  background-color: #21a9c7;
+  background-color: var(--color-accent-hover);
 }
 
 .no-examples {
   grid-column: 1 / -1;
   text-align: center;
   padding: 40px 20px;
-  color: #666;
+  color: var(--color-text-muted);
   font-style: italic;
 }
 

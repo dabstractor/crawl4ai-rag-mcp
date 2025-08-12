@@ -5,12 +5,103 @@
         "id": 1,
         "title": "Research FastMCP HTTP Integration Options",
         "description": "Investigate the best approach for integrating HTTP API capabilities with the existing FastMCP server.",
-        "details": "Research the three options outlined in the PRD: FastMCP Router Extension, Separate FastAPI Instance, and FastMCP Hook System. Evaluate each approach based on compatibility with current FastMCP version, ease of implementation, and performance impact. Document findings with code examples for each approach. Specifically check if FastMCP exposes the underlying FastAPI app directly or if it has a hook system. Consider using FastAPI 0.104.0+ for its improved typing support and performance. Document any potential breaking changes or compatibility issues with the current MCP implementation.",
-        "testStrategy": "Create proof-of-concept implementations for each approach and test basic functionality. Measure performance overhead for each approach. Document findings in a comparison matrix with pros/cons for team review.",
-        "priority": "high",
+        "status": "done",
         "dependencies": [],
-        "status": "pending",
-        "subtasks": []
+        "priority": "high",
+        "details": "Based on research findings, the MCP server currently uses FastMCP with SSE transport (`mcp.run_sse_async()`) via environment variable `TRANSPORT=\"sse\"`. Three integration options were evaluated: FastMCP HTTP Transport, FastAPI-MCP Library, and a Hybrid Approach. The recommended approach is to use FastMCP's native HTTP transport capability and add custom FastAPI endpoints to the existing FastMCP server. FastMCP already uses Starlette/ASGI internally, so we can access the underlying app. Technical implementation involves using `mcp.run(transport=\"http\", host=\"127.0.0.1\", port=8051, path=\"/mcp/\")`, exposing the underlying ASGI app to add custom routes, implementing CORS middleware for browser access, and adding `/api/health`, `/api/sources`, `/api/search` endpoints that wrap existing MCP tools.",
+        "testStrategy": "Create a proof-of-concept implementation using the recommended hybrid approach. Test adding custom routes to the FastMCP server. Implement and test CORS middleware functionality. Verify that custom endpoints can successfully call MCP tools. Measure performance overhead of the hybrid approach. Document findings with code examples for team review.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Document current FastMCP implementation",
+            "description": "Document that the MCP server uses FastMCP with SSE transport (`mcp.run_sse_async()`) via environment variable `TRANSPORT=\"sse\"`",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Evaluate FastMCP HTTP Transport option",
+            "description": "Test and document FastMCP's native HTTP transport via `mcp.run()` with `transport=\"http\"` which creates a streamable HTTP server using Uvicorn",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Evaluate FastAPI-MCP Library option",
+            "description": "Research the separate library for exposing FastAPI endpoints as MCP tools",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Evaluate Hybrid Approach",
+            "description": "Test running FastMCP in HTTP mode while adding custom FastAPI endpoints",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Create technical implementation plan",
+            "description": "Document how to implement the recommended hybrid approach using `mcp.run(transport=\"http\", host=\"127.0.0.1\", port=8051, path=\"/mcp/\")`, exposing the underlying ASGI app, implementing CORS middleware, and adding custom API endpoints",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Create POC for accessing underlying ASGI app",
+            "description": "Create a proof-of-concept showing how to access and extend the underlying Starlette/ASGI app in FastMCP to add custom routes",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Test CORS middleware implementation",
+            "description": "Implement and test CORS middleware for browser access with the hybrid approach",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "Create endpoint wrapper examples",
+            "description": "Create example implementations for `/api/health`, `/api/sources`, and `/api/search` endpoints that wrap existing MCP tools",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "Measure performance impact",
+            "description": "Benchmark the performance overhead of the hybrid approach compared to the current SSE implementation",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 10,
+            "title": "Prepare final recommendation document",
+            "description": "Compile all findings into a final recommendation document with code examples and implementation steps",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 2,
@@ -22,7 +113,7 @@
         "dependencies": [
           1
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -35,7 +126,7 @@
         "dependencies": [
           2
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -48,7 +139,7 @@
         "dependencies": [
           2
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -62,7 +153,7 @@
           3,
           4
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -76,7 +167,7 @@
           2,
           5
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -90,7 +181,7 @@
           5,
           6
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -104,7 +195,7 @@
           5,
           6
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -328,7 +419,7 @@
         "dependencies": [
           2
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -364,7 +455,7 @@
     ],
     "metadata": {
       "created": "2025-08-12T02:51:56.687Z",
-      "updated": "2025-08-12T02:51:56.687Z",
+      "updated": "2025-08-12T13:13:29.367Z",
       "description": "Tasks for master context"
     }
   }

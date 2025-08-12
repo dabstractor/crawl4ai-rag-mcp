@@ -3,9 +3,9 @@
 }
 
 .App-header {
-  background-color: #282c34;
+  background-color: var(--color-nav-bg);
   padding: 20px;
-  color: white;
+  color: var(--color-inverse-text);
 }
 
 .App-header h1 {
@@ -29,12 +29,12 @@ main {
 }
 
 .tab-content h2 {
-  color: #282c34;
-  border-bottom: 2px solid #61dafb;
+  color: var(--color-text-strong);
+  border-bottom: 2px solid var(--color-accent);
   padding-bottom: 10px;
 }
 
 .tab-content p {
-  color: #333;
+  color: var(--color-text);
   line-height: 1.6;
 }
