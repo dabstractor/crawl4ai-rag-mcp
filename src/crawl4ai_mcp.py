@@ -2780,6 +2780,7 @@ async def main():
         # For SSE transport, we run the FastAPI app which includes both MCP and custom endpoints
         try:
             logger.info(f"Starting FastAPI server with MCP support on {host}:{port}")
+            logger.info(f"FastAPI app routes: {[route.path for route in fastapi_app.routes]}")
             
             # Run the FastMCP SSE server which includes our custom endpoints
             config = uvicorn.Config(
