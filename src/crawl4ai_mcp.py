@@ -62,11 +62,18 @@ mcp = FastMCP(
     instructions="MCP server for RAG and web crawling with Crawl4AI"
 )
 
-# Get the underlying Starlette app
-sse_app = mcp.sse_app()
+# Import FastAPI to create a proper FastAPI app for custom endpoints
+from fastapi import FastAPI
 
-# Add CORS middleware to the FastMCP app
-sse_app.add_middleware(
+# Create a FastAPI app for custom HTTP endpoints
+fastapi_app = FastAPI(
+    title="Crawl4AI MCP API",
+    description="HTTP REST API for Crawl4AI MCP Server",
+    version="1.0.0"
+)
+
+# Add CORS middleware to the FastAPI app
+fastapi_app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Configure appropriately for production
     allow_credentials=True,
@@ -78,16 +85,21 @@ sse_app.add_middleware(
 from src.api.middleware import RequestLoggingMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 
 # Add security headers middleware
-sse_app.add_middleware(SecurityHeadersMiddleware)
+fastapi_app.add_middleware(SecurityHeadersMiddleware)
 
 # Add rate limiting middleware (60 requests per minute)
-sse_app.add_middleware(RateLimitMiddleware, calls_per_minute=60)
+fastapi_app.add_middleware(RateLimitMiddleware, calls_per_minute=60)
 
 # Add request logging middleware (add last to capture all request details)
-sse_app.add_middleware(RequestLoggingMiddleware)
+fastapi_app.add_middleware(RequestLoggingMiddleware)
 
 # Include our custom API router
-sse_app.include_router(api_router)
+fastapi_app.include_router(api_router)
+
+# Mount the FastAPI app to handle /api routes
+# We need to get the Starlette app to mount our FastAPI app
+sse_app = mcp.sse_app()
+sse_app.mount("/api", fastapi_app)
 
 print("✓ FastMCP server initialized with custom endpoints")
 
