@@ -15,6 +15,8 @@ COPY . .
 RUN uv pip install --system -e . && \
     crawl4ai-setup
 
+ENV PYTHONPATH=/app
+
 EXPOSE ${PORT}
 
 # Command to run the MCP server
