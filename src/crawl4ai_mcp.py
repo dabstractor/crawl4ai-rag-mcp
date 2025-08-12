@@ -75,7 +75,7 @@ sse_app.add_middleware(
 )
 
 # Add custom middleware components
-from src.api.middleware import RequestLoggingMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
+from .api.middleware import RequestLoggingMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 
 # Add security headers middleware
 sse_app.add_middleware(SecurityHeadersMiddleware)
