@@ -52,8 +52,8 @@ from utils import (
 )
 
 # Import HTTP API components
-from src.api.responses import APIResponse, HealthResponse, SourcesResponse, SearchResponse, HealthData, SourceData, SearchResultData
-from src.api.endpoints import router as api_router
+from .api.responses import APIResponse, HealthResponse, SourcesResponse, SearchResponse, HealthData, SourceData, SearchResultData
+from .api.endpoints import router as api_router
 
 # Initialize FastMCP server first
 print("Initializing FastMCP server...")
@@ -73,6 +73,18 @@ sse_app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add custom middleware components
+from src.api.middleware import RequestLoggingMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
+
+# Add security headers middleware
+sse_app.add_middleware(SecurityHeadersMiddleware)
+
+# Add rate limiting middleware (60 requests per minute)
+sse_app.add_middleware(RateLimitMiddleware, calls_per_minute=60)
+
+# Add request logging middleware (add last to capture all request details)
+sse_app.add_middleware(RequestLoggingMiddleware)
 
 # Include our custom API router
 sse_app.include_router(api_router)
