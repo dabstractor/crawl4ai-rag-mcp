@@ -101,7 +101,10 @@ print(f"✓ FastAPI app created with routes: {[route.path for route in fastapi_a
 # Mount the FastAPI app to handle /api routes
 # We need to get the Starlette app to mount our FastAPI app
 sse_app = mcp.sse_app()
+print(f"✓ SSE app type: {type(sse_app)}")
+print(f"✓ SSE app routes before mount: {[route.path for route in sse_app.routes]}")
 sse_app.mount("/api", fastapi_app)
+print(f"✓ SSE app routes after mount: {[route.path for route in sse_app.routes]}")
 
 print("✓ FastMCP server initialized with custom endpoints")
 print("✓ Custom API routes mounted at /api")
