@@ -96,12 +96,15 @@ fastapi_app.add_middleware(RequestLoggingMiddleware)
 # Include our custom API router
 fastapi_app.include_router(api_router)
 
+print(f"✓ FastAPI app created with routes: {[route.path for route in fastapi_app.routes]}")
+
 # Mount the FastAPI app to handle /api routes
 # We need to get the Starlette app to mount our FastAPI app
 sse_app = mcp.sse_app()
 sse_app.mount("/api", fastapi_app)
 
 print("✓ FastMCP server initialized with custom endpoints")
+print("✓ Custom API routes mounted at /api")
 
 # Import knowledge graph modules
 from knowledge_graph_validator import KnowledgeGraphValidator
