@@ -4,6 +4,8 @@ MCP server for web crawling with Crawl4AI.
 This server provides tools to crawl websites using Crawl4AI, automatically detecting
 the appropriate crawl method based on URL type (sitemap, txt file, or regular webpage).
 Also includes AI hallucination detection and repository parsing tools using Neo4j knowledge graphs.
+
+Supports both MCP protocol (SSE/stdio) and HTTP REST API endpoints for browser-based clients.
 """
 from mcp.server.fastmcp import FastMCP, Context
 from sentence_transformers import CrossEncoder
@@ -24,6 +26,12 @@ import re
 import concurrent.futures
 import sys
 import time
+import logging
+
+# Import FastAPI for HTTP API support
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode, MemoryAdaptiveDispatcher
 
@@ -42,6 +50,34 @@ from utils import (
     extract_source_summary,
     search_code_examples
 )
+
+# Import HTTP API components
+from src.api.responses import APIResponse, HealthResponse, SourcesResponse, SearchResponse, HealthData, SourceData, SearchResultData
+from src.api.endpoints import router as api_router
+
+# Initialize FastMCP server first
+print("Initializing FastMCP server...")
+mcp = FastMCP(
+    name="mcp-crawl4ai-rag",
+    instructions="MCP server for RAG and web crawling with Crawl4AI"
+)
+
+# Get the underlying Starlette app
+sse_app = mcp.sse_app()
+
+# Add CORS middleware to the FastMCP app
+sse_app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure appropriately for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Include our custom API router
+sse_app.include_router(api_router)
+
+print("✓ FastMCP server initialized with custom endpoints")
 
 # Import knowledge graph modules
 from knowledge_graph_validator import KnowledgeGraphValidator
@@ -123,6 +159,7 @@ class Crawl4AIContext:
     knowledge_validator: Optional[Any] = None  # KnowledgeGraphValidator when available
     repo_extractor: Optional[Any] = None       # DirectNeo4jExtractor when available
     initialized: bool = False                  # Track initialization status
+    fastapi_app: Optional[FastAPI] = None      # FastAPI app for HTTP endpoints
 
 @asynccontextmanager
 async def crawl4ai_lifespan(server: FastMCP) -> AsyncIterator[Crawl4AIContext]:
@@ -194,6 +231,9 @@ async def crawl4ai_lifespan(server: FastMCP) -> AsyncIterator[Crawl4AIContext]:
     else:
         print("Knowledge graph functionality disabled - set USE_KNOWLEDGE_GRAPH=true to enable")
     
+    # The FastAPI app is already initialized at module level with our custom endpoints
+    print("✓ Lifespan initialized - FastAPI app with custom endpoints already configured")
+    
     # Create the context with initialization flag
     context = Crawl4AIContext(
         crawler=crawler,
@@ -201,7 +241,8 @@ async def crawl4ai_lifespan(server: FastMCP) -> AsyncIterator[Crawl4AIContext]:
         reranking_model=reranking_model,
         knowledge_validator=knowledge_validator,
         repo_extractor=repo_extractor,
-        initialized=True
+        initialized=True,
+        fastapi_app=sse_app
     )
     
     print("Crawl4AI MCP server initialization complete!")
@@ -224,16 +265,8 @@ async def crawl4ai_lifespan(server: FastMCP) -> AsyncIterator[Crawl4AIContext]:
             except Exception as e:
                 print(f"Error closing repository extractor: {e}")
 
-# Initialize FastMCP server
-mcp = FastMCP(
-    "mcp-crawl4ai-rag",
-    description="MCP server for RAG and web crawling with Crawl4AI",
-    lifespan=crawl4ai_lifespan,
-    host=os.getenv("HOST", "0.0.0.0"),
-    port=os.getenv("PORT", "8051")
-)
-
-# Note: HTTP API endpoints will be added after MCP server initialization
+# FastMCP server is already initialized above
+print("✓ FastMCP server ready with HTTP API endpoints")
 
 def rerank_results(model: CrossEncoder, query: str, results: List[Dict[str, Any]], content_key: str = "content") -> List[Dict[str, Any]]:
     """
@@ -2699,12 +2732,43 @@ async def crawl_recursive_internal_links(crawler: AsyncWebCrawler, start_urls: L
     return results_all
 
 async def main():
+    import uvicorn
+    import asyncio
+    
+    # Configure logging
+    from src.config import configure_logging
+    configure_logging()
+    
+    logger = logging.getLogger("http_api")
+    logger.info("Starting Crawl4AI MCP HTTP API server...")
+    
+    # Get port from environment or default
+    port = int(os.getenv("PORT", "8051"))
+    host = os.getenv("HOST", "0.0.0.0")
+    
+    # Run both MCP and HTTP servers
     transport = os.getenv("TRANSPORT", "sse")
+    
     if transport == 'sse':
-        # Run the MCP server with sse transport
-        await mcp.run_sse_async()
+        # For SSE transport, we run the FastAPI app which includes both MCP and custom endpoints
+        try:
+            logger.info(f"Starting FastAPI server with MCP support on {host}:{port}")
+            
+            # Run the FastMCP SSE server which includes our custom endpoints
+            config = uvicorn.Config(
+                app=sse_app,
+                host=host,
+                port=port,
+                log_level="info"
+            )
+            server = uvicorn.Server(config)
+            await server.serve()
+        except Exception as e:
+            logger.error(f"Failed to start FastAPI server: {e}")
+            raise
+        
     else:
-        # Run the MCP server with stdio transport
+        # Run the MCP server with stdio transport only
         await mcp.run_stdio_async()
 
 if __name__ == "__main__":
