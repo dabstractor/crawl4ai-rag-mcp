@@ -10,98 +10,7 @@
         "priority": "high",
         "details": "Based on research findings, the MCP server currently uses FastMCP with SSE transport (`mcp.run_sse_async()`) via environment variable `TRANSPORT=\"sse\"`. Three integration options were evaluated: FastMCP HTTP Transport, FastAPI-MCP Library, and a Hybrid Approach. The recommended approach is to use FastMCP's native HTTP transport capability and add custom FastAPI endpoints to the existing FastMCP server. FastMCP already uses Starlette/ASGI internally, so we can access the underlying app. Technical implementation involves using `mcp.run(transport=\"http\", host=\"127.0.0.1\", port=8051, path=\"/mcp/\")`, exposing the underlying ASGI app to add custom routes, implementing CORS middleware for browser access, and adding `/api/health`, `/api/sources`, `/api/search` endpoints that wrap existing MCP tools.",
         "testStrategy": "Create a proof-of-concept implementation using the recommended hybrid approach. Test adding custom routes to the FastMCP server. Implement and test CORS middleware functionality. Verify that custom endpoints can successfully call MCP tools. Measure performance overhead of the hybrid approach. Document findings with code examples for team review.",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Document current FastMCP implementation",
-            "description": "Document that the MCP server uses FastMCP with SSE transport (`mcp.run_sse_async()`) via environment variable `TRANSPORT=\"sse\"`",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 2,
-            "title": "Evaluate FastMCP HTTP Transport option",
-            "description": "Test and document FastMCP's native HTTP transport via `mcp.run()` with `transport=\"http\"` which creates a streamable HTTP server using Uvicorn",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 3,
-            "title": "Evaluate FastAPI-MCP Library option",
-            "description": "Research the separate library for exposing FastAPI endpoints as MCP tools",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 4,
-            "title": "Evaluate Hybrid Approach",
-            "description": "Test running FastMCP in HTTP mode while adding custom FastAPI endpoints",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 5,
-            "title": "Create technical implementation plan",
-            "description": "Document how to implement the recommended hybrid approach using `mcp.run(transport=\"http\", host=\"127.0.0.1\", port=8051, path=\"/mcp/\")`, exposing the underlying ASGI app, implementing CORS middleware, and adding custom API endpoints",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 6,
-            "title": "Create POC for accessing underlying ASGI app",
-            "description": "Create a proof-of-concept showing how to access and extend the underlying Starlette/ASGI app in FastMCP to add custom routes",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 7,
-            "title": "Test CORS middleware implementation",
-            "description": "Implement and test CORS middleware for browser access with the hybrid approach",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 8,
-            "title": "Create endpoint wrapper examples",
-            "description": "Create example implementations for `/api/health`, `/api/sources`, and `/api/search` endpoints that wrap existing MCP tools",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 9,
-            "title": "Measure performance impact",
-            "description": "Benchmark the performance overhead of the hybrid approach compared to the current SSE implementation",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 10,
-            "title": "Prepare final recommendation document",
-            "description": "Compile all findings into a final recommendation document with code examples and implementation steps",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          }
-        ]
+        "subtasks": []
       },
       {
         "id": 2,
@@ -255,98 +164,7 @@
         "priority": "medium",
         "details": "In src/api/middleware.py, implement request logging middleware that:\n1. Logs incoming requests with method, path, and query parameters\n2. Logs response status codes and timing information\n3. Includes correlation IDs for request tracking\n4. Configurable log levels based on environment\n\nImplement using FastAPI middleware. Include timing information to help identify slow endpoints. Use Python's logging module with proper formatting. Example:\n```python\nimport time\nimport uuid\nimport logging\nfrom fastapi import FastAPI, Request\nfrom starlette.middleware.base import BaseHTTPMiddleware\n\nlogger = logging.getLogger(__name__)\n\nclass RequestLoggingMiddleware(BaseHTTPMiddleware):\n    async def dispatch(self, request: Request, call_next):\n        request_id = str(uuid.uuid4())\n        start_time = time.time()\n        \n        # Log request\n        logger.info(f\"Request {request_id}: {request.method} {request.url.path}\")\n        \n        # Process request\n        try:\n            response = await call_next(request)\n            process_time = time.time() - start_time\n            \n            # Log response\n            logger.info(\n                f\"Response {request_id}: {response.status_code} completed in {process_time:.3f}s\"\n            )\n            \n            # Add custom headers\n            response.headers[\"X-Process-Time\"] = str(process_time)\n            response.headers[\"X-Request-ID\"] = request_id\n            \n            return response\n        except Exception as e:\n            process_time = time.time() - start_time\n            logger.error(\n                f\"Error {request_id}: {str(e)} after {process_time:.3f}s\"\n            )\n            raise\n\ndef add_logging_middleware(app: FastAPI):\n    app.add_middleware(RequestLoggingMiddleware)\n```",
         "testStrategy": "Test the logging middleware by sending various requests and verifying that they're correctly logged. Test error scenarios and verify that errors are properly logged. Check that timing information is accurate and that correlation IDs are consistent across log entries. Verify that the REQUEST_LOG_LEVEL environment variable correctly controls log levels. Test the X-Request-ID header in responses and confirm it matches the logged request ID. Test the client IP detection with various header configurations (X-Forwarded-For, X-Real-IP).",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Implement RequestLoggingMiddleware with correlation IDs",
-            "description": "Added correlation IDs (UUID) for request tracking across log entries",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 2,
-            "title": "Add query parameters logging with structured data",
-            "description": "Implemented structured logging of query parameters for better searchability",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 3,
-            "title": "Implement configurable log levels",
-            "description": "Added support for configurable log levels via REQUEST_LOG_LEVEL environment variable",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 4,
-            "title": "Enhance timing information with detailed metrics",
-            "description": "Added detailed timing metrics for better performance monitoring",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 5,
-            "title": "Improve error handling with full context logging",
-            "description": "Enhanced error handling to include full context and stack traces in logs",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 6,
-            "title": "Add structured logging with extra fields",
-            "description": "Implemented structured logging with additional fields for better observability",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 7,
-            "title": "Add X-Request-ID header to responses",
-            "description": "Added X-Request-ID header to responses for client-side request tracking",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 8,
-            "title": "Extract get_client_ip utility function",
-            "description": "Created utility function to extract client IP from various headers to avoid code duplication",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 9,
-            "title": "Write tests for RequestLoggingMiddleware",
-            "description": "Create comprehensive tests to verify all middleware functionality including request/response logging, error handling, and header processing",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 10,
-            "title": "Verify middleware integration with application",
-            "description": "Test the middleware in the context of the full application to ensure proper integration",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          }
-        ]
+        "subtasks": []
       },
       {
         "id": 13,
@@ -359,7 +177,7 @@
           3,
           11
         ],
-        "status": "pending",
+        "status": "done",
         "subtasks": []
       },
       {
@@ -422,71 +240,7 @@
         "priority": "high",
         "details": "Create integration tests that simulate the UI's interaction with the HTTP API. Test:\n1. Connection test functionality\n2. Sources dropdown population\n3. Search functionality (both GET and POST)\n4. Error handling and display\n5. CORS headers verification\n\nImplement tests using a combination of API client tests and browser automation if possible. The tests have been successfully implemented in tests/test_ui_integration.py with comprehensive coverage of all required functionality.\n\nThe test suite includes:\n- API connectivity tests validating all endpoints work correctly for UI consumption\n- Sources dropdown population testing\n- Search functionality testing for both GET and POST methods\n- Error handling validation\n- CORS headers verification\n- Browser automation test framework (requires selenium)\n\nExample implementation:\n```python\nimport pytest\nimport requests\nfrom selenium import webdriver\nfrom selenium.webdriver.common.by import By\nfrom selenium.webdriver.support.ui import WebDriverWait\nfrom selenium.webdriver.support import expected_conditions as EC\n\n@pytest.fixture\ndef api_base_url():\n    return \"http://localhost:8051/api\"\n\ndef test_connection_test_component(api_base_url):\n    # Test that the health endpoint returns a successful response\n    response = requests.get(f\"{api_base_url}/health\")\n    assert response.status_code == 200\n    data = response.json()\n    assert data[\"status\"] == \"healthy\"\n\ndef test_sources_dropdown(api_base_url):\n    # Test that the sources endpoint returns data that can populate the dropdown\n    response = requests.get(f\"{api_base_url}/sources\")\n    assert response.status_code == 200\n    data = response.json()\n    assert \"sources\" in data\n    assert len(data[\"sources\"]) > 0\n\ndef test_search_functionality_get(api_base_url):\n    # Test that the search endpoint returns results using GET\n    response = requests.get(f\"{api_base_url}/search?query=test\")\n    assert response.status_code == 200\n    data = response.json()\n    assert \"results\" in data\n    assert \"query\" in data\n    assert data[\"query\"] == \"test\"\n    \ndef test_search_functionality_post(api_base_url):\n    # Test that the search endpoint returns results using POST\n    response = requests.post(f\"{api_base_url}/search\", json={\"query\": \"test\"})\n    assert response.status_code == 200\n    data = response.json()\n    assert \"results\" in data\n    assert \"query\" in data\n    assert data[\"query\"] == \"test\"\n    \ndef test_cors_headers(api_base_url):\n    # Test that CORS headers are properly set\n    headers = {\"Origin\": \"http://localhost:3741\"}\n    response = requests.get(f\"{api_base_url}/health\", headers=headers)\n    assert response.status_code == 200\n    assert \"Access-Control-Allow-Origin\" in response.headers\n\ndef test_error_handling(api_base_url):\n    # Test error handling for invalid requests\n    response = requests.get(f\"{api_base_url}/search\")\n    assert response.status_code == 422  # Validation error\n\n# Browser automation test (requires selenium)\n@pytest.mark.selenium\ndef test_ui_connection(api_base_url):\n    driver = webdriver.Chrome()\n    try:\n        # Navigate to the UI\n        driver.get(\"http://localhost:3741\")\n        \n        # Wait for connection test to complete\n        connection_status = WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((By.ID, \"connection-status\"))\n        )\n        assert \"Connected\" in connection_status.text\n        \n        # Test search functionality\n        search_input = driver.find_element(By.ID, \"search-input\")\n        search_input.send_keys(\"test query\")\n        search_button = driver.find_element(By.ID, \"search-button\")\n        search_button.click()\n        \n        # Wait for results\n        results = WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((By.CLASS_NAME, \"search-results\"))\n        )\n        assert results.is_displayed()\n    finally:\n        driver.quit()\n```",
         "testStrategy": "Run the integration tests against a running instance of the HTTP API server. Verify that all tests pass. Test with both mock data and real data if possible. Test error scenarios and recovery. If browser automation is used, verify that the UI components work correctly with the API.\n\nThe test suite has been successfully implemented and verified with 100% success rate. It includes 7 API connectivity tests that pass, with additional browser automation tests available when selenium is installed. The tests work both with and without selenium for browser automation.\n\nThe integration tests verify that:\n- Health endpoint returns proper status for connection testing\n- Sources endpoint provides data for dropdown population  \n- Search endpoints work correctly with proper response format\n- Error handling works as expected for invalid requests\n- CORS is properly configured for UI connectivity",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Implement API connectivity tests",
-            "description": "Create tests that validate all endpoints work correctly for UI consumption",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 2,
-            "title": "Implement sources dropdown population testing",
-            "description": "Test that the sources endpoint returns data that can populate the dropdown",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 3,
-            "title": "Implement search functionality testing",
-            "description": "Test both GET and POST methods for the search endpoint",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 4,
-            "title": "Implement error handling validation",
-            "description": "Test error handling for invalid requests and verify proper error responses",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 5,
-            "title": "Implement CORS headers verification",
-            "description": "Test that CORS headers are properly set for UI connectivity",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 6,
-            "title": "Implement browser automation test framework",
-            "description": "Create browser automation tests using selenium to verify UI components work with the API",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 7,
-            "title": "Verify test suite with and without selenium",
-            "description": "Ensure tests work both with and without selenium for browser automation",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          }
-        ]
+        "subtasks": []
       },
       {
         "id": 18,
@@ -545,35 +299,7 @@
         "priority": "medium",
         "details": "Implement graceful shutdown handling that:\n1. Catches termination signals (SIGTERM, SIGINT)\n2. Completes in-flight requests before shutting down\n3. Closes database connections and resources properly\n4. Logs shutdown process\n\nImplementation completed in src/shutdown.py with a GracefulShutdown class that:\n- Handles SIGTERM/SIGINT signals\n- Provides a shutdown callback system for cleanup\n- Includes default resource cleanup including task cancellation\n- Supports both Starlette and FastAPI applications\n\nIntegrated into main server (src/crawl4ai_mcp.py) with:\n- Setup for SSE app graceful shutdown\n- Cleanup callbacks for Supabase connections\n- Support for both SSE and stdio transport modes",
         "testStrategy": "Test graceful shutdown by sending SIGTERM and SIGINT signals to the server process. Verify that in-flight requests are completed before shutdown. Test that resources are properly cleaned up. Test that the server logs the shutdown process correctly.\n\nTesting confirmed:\n- SIGTERM signal handling works correctly\n- Shutdown callbacks execute properly\n- Resource cleanup performs correctly\n- Server logs show proper graceful shutdown sequence",
-        "subtasks": [
-          {
-            "id": 1,
-            "title": "Create src/shutdown.py module",
-            "description": "Implement GracefulShutdown class handling SIGTERM/SIGINT signals with shutdown callback system for cleanup",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 2,
-            "title": "Integrate shutdown handling into main server",
-            "description": "Setup graceful shutdown for SSE app, add cleanup callbacks for Supabase connections, and support both SSE and stdio transport modes",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          },
-          {
-            "id": 3,
-            "title": "Test graceful shutdown functionality",
-            "description": "Verify SIGTERM signal handling, shutdown callbacks execution, resource cleanup, and proper shutdown sequence logging",
-            "status": "done",
-            "dependencies": [],
-            "details": "",
-            "testStrategy": ""
-          }
-        ]
+        "subtasks": []
       },
       {
         "id": 22,
@@ -638,7 +364,7 @@
     ],
     "metadata": {
       "created": "2025-08-12T02:51:56.687Z",
-      "updated": "2025-08-13T21:28:17.027Z",
+      "updated": "2025-08-13T22:00:37.248Z",
       "description": "Tasks for master context"
     }
   }

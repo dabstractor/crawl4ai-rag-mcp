@@ -143,49 +143,86 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Simple in-memory rate limiting middleware."""
+    """
+    Enhanced rate limiting middleware using sliding window algorithm.
     
-    def __init__(self, app: ASGIApp, calls_per_minute: int = 60):
+    Features:
+    - Configurable rate limits via environment variables
+    - Sliding window algorithm for accurate rate limiting
+    - Proper retry-after headers
+    - StandardHTTP 429 responses with correct error format
+    - In-memory storage (Redis support can be added later)
+    """
+    
+    def __init__(self, app: ASGIApp, requests_per_minute: int = None):
         super().__init__(app)
-        self.calls_per_minute = calls_per_minute
-        self.clients: Dict[str, list] = defaultdict(list)
+        # Get rate limit from environment with fallback
+        default_limit = requests_per_minute or 60
+        self.requests_per_minute = int(os.getenv("API_RATE_LIMIT", default_limit))
+        self.window_size = 60  # 1 minute window in seconds
+        self.request_log: Dict[str, list] = defaultdict(list)  # IP -> list of timestamps
+        
+        logger.info(f"Rate limiting configured: {self.requests_per_minute} requests per minute")
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        """Apply rate limiting based on client IP."""
+        """Apply rate limiting based on client IP using sliding window algorithm."""
         client_ip = get_client_ip(request)
-        now = datetime.now()
-        minute_ago = now - timedelta(minutes=1)
+        current_time = time.time()
         
-        # Clean old entries
-        self.clients[client_ip] = [
-            timestamp for timestamp in self.clients[client_ip] 
-            if timestamp > minute_ago
+        # Clean old requests outside the sliding window
+        cutoff_time = current_time - self.window_size
+        self.request_log[client_ip] = [
+            timestamp for timestamp in self.request_log[client_ip]
+            if timestamp > cutoff_time
         ]
         
         # Check rate limit
-        if len(self.clients[client_ip]) >= self.calls_per_minute:
-            logger.warning(f"Rate limit exceeded for client {client_ip}")
-            return Response(
-                content=json.dumps({
-                    "success": False,
-                    "error": "Rate limit exceeded. Please try again later.",
-                    "data": None
-                }),
+        if len(self.request_log[client_ip]) >= self.requests_per_minute:
+            # Calculate retry-after based on oldest request in window
+            oldest_request = self.request_log[client_ip][0]
+            retry_after = int(self.window_size - (current_time - oldest_request))
+            retry_after = max(1, retry_after)  # Ensure at least 1 second
+            
+            logger.warning(
+                f"Rate limit exceeded for client {client_ip}. "
+                f"Requests in window: {len(self.request_log[client_ip])}/{self.requests_per_minute}. "
+                f"Retry after: {retry_after}s"
+            )
+            
+            # Import HTTPException here to avoid circular imports
+            from fastapi import HTTPException
+            raise HTTPException(
                 status_code=429,
-                headers={"Content-Type": "application/json"}
+                detail={
+                    "success": False,
+                    "error": {
+                        "code": "RATE_LIMIT_EXCEEDED",
+                        "message": "Rate limit exceeded. Please try again later.",
+                        "details": {
+                            "limit": self.requests_per_minute,
+                            "window": f"{self.window_size}s",
+                            "retry_after": retry_after
+                        }
+                    },
+                    "data": None
+                },
+                headers={"Retry-After": str(retry_after)}
             )
         
-        # Add current request
-        self.clients[client_ip].append(now)
+        # Log current request
+        self.request_log[client_ip].append(current_time)
         
         # Process request
         response = await call_next(request)
         
-        # Add rate limit headers
-        remaining = max(0, self.calls_per_minute - len(self.clients[client_ip]))
-        response.headers["X-RateLimit-Limit"] = str(self.calls_per_minute)
+        # Add rate limit headers to successful responses
+        remaining = max(0, self.requests_per_minute - len(self.request_log[client_ip]))
+        reset_time = int(current_time + self.window_size)
+        
+        response.headers["X-RateLimit-Limit"] = str(self.requests_per_minute)
         response.headers["X-RateLimit-Remaining"] = str(remaining)
-        response.headers["X-RateLimit-Reset"] = str(int((now + timedelta(minutes=1)).timestamp()))
+        response.headers["X-RateLimit-Reset"] = str(reset_time)
+        response.headers["X-RateLimit-Window"] = f"{self.window_size}s"
         
         return response
 
@@ -273,7 +310,7 @@ def setup_middleware_stack(app, enable_rate_limiting: bool = True,
     
     # Rate limiting (if enabled)
     if enable_rate_limiting:
-        app.add_middleware(RateLimitMiddleware, calls_per_minute=rate_limit_calls_per_minute)
+        app.add_middleware(RateLimitMiddleware, requests_per_minute=rate_limit_calls_per_minute)
         logger.info(f"Rate limiting enabled: {rate_limit_calls_per_minute} calls per minute")
     
     # Request logging (last, to capture all request details)
