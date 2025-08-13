@@ -1,5 +1,9 @@
 # Technology Stack
 
+## ⚠️ CRITICAL: Use Desktop Commander for All Commands
+
+**ALL commands must be run using Desktop Commander tools to prevent long-running tasks from blocking your work.** Never use regular bash execution - always use `mcp_desktop_commander_start_process` and `mcp_desktop_commander_interact_with_process` for any command execution.
+
 ## Core Technologies
 
 - **Python 3.12+**: Main application language
