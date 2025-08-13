@@ -119,14 +119,24 @@ def configure_logging():
     log_level = log_level_map.get(settings.log_level, logging.INFO)
     
     # Configure root logger with both file and console handlers
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler(os.path.join(log_dir, "http_api.log"))
-        ]
-    )
+    try:
+        logging.basicConfig(
+            level=log_level,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[
+                logging.StreamHandler(),
+                logging.FileHandler(os.path.join(log_dir, "http_api.log"))
+            ]
+        )
+    except PermissionError:
+        # Fall back to console-only logging if file logging fails
+        logging.basicConfig(
+            level=log_level,
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            handlers=[
+                logging.StreamHandler()
+            ]
+        )
     
     # Set specific loggers
     logging.getLogger("uvicorn").setLevel(log_level)

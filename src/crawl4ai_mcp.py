@@ -39,7 +39,7 @@ from crawl4ai import AsyncWebCrawler, BrowserConfig, CrawlerRunConfig, CacheMode
 knowledge_graphs_path = Path(__file__).resolve().parent.parent / 'knowledge_graphs'
 sys.path.append(str(knowledge_graphs_path))
 
-from utils import (
+from src.utils import (
     get_supabase_client, 
     add_documents_to_supabase, 
     search_documents,
@@ -51,10 +51,6 @@ from utils import (
     search_code_examples
 )
 
-# Import HTTP API components
-from src.api.responses import APIResponse, HealthResponse, SourcesResponse, SearchResponse, HealthData, SourceData, SearchResultData
-from src.api.endpoints import router as api_router
-
 # Initialize FastMCP server first
 print("Initializing FastMCP server...")
 mcp = FastMCP(
@@ -62,52 +58,323 @@ mcp = FastMCP(
     instructions="MCP server for RAG and web crawling with Crawl4AI"
 )
 
-# Import FastAPI to create a proper FastAPI app for custom endpoints
-from fastapi import FastAPI
+# Check if HTTP API is enabled via environment variable
+ENABLE_HTTP_API = os.getenv("ENABLE_HTTP_API", "true").lower() == "true"
 
-# Create a FastAPI app for custom HTTP endpoints
-fastapi_app = FastAPI(
-    title="Crawl4AI MCP API",
-    description="HTTP REST API for Crawl4AI MCP Server",
-    version="1.0.0"
-)
+if ENABLE_HTTP_API:
+    print("HTTP API enabled - setting up endpoints and middleware...")
+    
+    # Import HTTP API components
+    from src.api.endpoints import router as api_router
+    from src.api.middleware import add_cors_middleware, setup_middleware_stack
+    
+    # Get the underlying FastAPI app from FastMCP
+    # FastMCP uses Starlette internally, but we need to work with it properly
+    try:
+        # Get the SSE app which is a Starlette application
+        sse_app = mcp.sse_app()
+        print(f"✓ Got SSE app: {type(sse_app)}")
+        
+        # Since FastMCP uses Starlette, we need to add routes manually
+        # Import the individual endpoint functions from our router
+        from src.api.endpoints import health_check, get_sources, search_documents, search_documents_post, search_code_examples, get_api_status
+        from starlette.routing import Route
+        from starlette.responses import JSONResponse
+        import json
+        
+        # Create wrapper functions that work with Starlette's request/response model
+        async def health_endpoint_wrapper(request):
+            """Wrapper for health check endpoint."""
+            try:
+                # Create a mock FastAPI request-like object
+                class MockRequest:
+                    def __init__(self, starlette_request):
+                        self.method = starlette_request.method
+                        self.url = starlette_request.url
+                        self.headers = starlette_request.headers
+                        self.query_params = starlette_request.query_params
+                        self.client = starlette_request.client
+                
+                mock_request = MockRequest(request)
+                response = await health_check(mock_request)
+                
+                # Convert FastAPI response to Starlette JSONResponse
+                if hasattr(response, 'dict'):
+                    content = response.dict()
+                else:
+                    content = response
+                    
+                return JSONResponse(content=content)
+                
+            except Exception as e:
+                return JSONResponse(
+                    content={
+                        "success": False,
+                        "error": f"Health check failed: {str(e)}",
+                        "data": {
+                            "status": "unhealthy",
+                            "version": "1.0.0",
+                            "mcp_connected": False
+                        }
+                    },
+                    status_code=500
+                )
+        
+        async def sources_endpoint_wrapper(request):
+            """Wrapper for sources endpoint."""
+            try:
+                response = await get_sources()
+                
+                if hasattr(response, 'dict'):
+                    content = response.dict()
+                else:
+                    content = response
+                    
+                return JSONResponse(content=content)
+                
+            except Exception as e:
+                return JSONResponse(
+                    content={
+                        "success": False,
+                        "error": f"Failed to retrieve sources: {str(e)}",
+                        "data": []
+                    },
+                    status_code=500
+                )
+        
+        async def search_endpoint_wrapper(request):
+            """Wrapper for search endpoint."""
+            try:
+                # Handle both GET and POST requests
+                if request.method == "GET":
+                    query = request.query_params.get('query')
+                    source = request.query_params.get('source')
+                    match_count = int(request.query_params.get('match_count', 5))
+                    
+                    if not query:
+                        return JSONResponse(
+                            content={
+                                "success": False,
+                                "error": "Query parameter is required",
+                                "data": []
+                            },
+                            status_code=400
+                        )
+                    
+                    # Create mock request object
+                    class MockRequest:
+                        def __init__(self, starlette_request):
+                            self.method = starlette_request.method
+                            self.url = starlette_request.url
+                            self.headers = starlette_request.headers
+                            self.query_params = starlette_request.query_params
+                            self.client = starlette_request.client
+                    
+                    mock_request = MockRequest(request)
+                    response = await search_documents(mock_request, query, source, match_count)
+                    
+                elif request.method == "POST":
+                    # Handle POST request with JSON body
+                    body = await request.body()
+                    if body:
+                        data = json.loads(body.decode('utf-8'))
+                        query = data.get('query')
+                        source = data.get('source')
+                        match_count = data.get('match_count', 5)
+                        
+                        if not query:
+                            return JSONResponse(
+                                content={
+                                    "success": False,
+                                    "error": "Query parameter is required",
+                                    "data": []
+                                },
+                                status_code=400
+                            )
+                        
+                        # Create search request object
+                        from src.api.endpoints import SearchRequest
+                        search_request = SearchRequest(
+                            query=query,
+                            source=source,
+                            match_count=match_count
+                        )
+                        
+                        class MockRequest:
+                            def __init__(self, starlette_request):
+                                self.method = starlette_request.method
+                                self.url = starlette_request.url
+                                self.headers = starlette_request.headers
+                                self.query_params = starlette_request.query_params
+                                self.client = starlette_request.client
+                        
+                        mock_request = MockRequest(request)
+                        response = await search_documents_post(mock_request, search_request)
+                    else:
+                        return JSONResponse(
+                            content={
+                                "success": False,
+                                "error": "Request body is required for POST",
+                                "data": []
+                            },
+                            status_code=400
+                        )
+                else:
+                    return JSONResponse(
+                        content={
+                            "success": False,
+                            "error": "Method not allowed",
+                            "data": []
+                        },
+                        status_code=405
+                    )
+                
+                if hasattr(response, 'dict'):
+                    content = response.dict()
+                else:
+                    content = response
+                    
+                return JSONResponse(content=content)
+                
+            except Exception as e:
+                return JSONResponse(
+                    content={
+                        "success": False,
+                        "error": f"Search failed: {str(e)}",
+                        "data": []
+                    },
+                    status_code=500
+                )
+        
+        async def code_examples_endpoint_wrapper(request):
+            """Wrapper for code examples endpoint."""
+            try:
+                query = request.query_params.get('query')
+                source_id = request.query_params.get('source_id')
+                match_count = int(request.query_params.get('match_count', 5))
+                
+                if not query:
+                    return JSONResponse(
+                        content={
+                            "success": False,
+                            "error": "Query parameter is required",
+                            "data": []
+                        },
+                        status_code=400
+                    )
+                
+                class MockRequest:
+                    def __init__(self, starlette_request):
+                        self.method = starlette_request.method
+                        self.url = starlette_request.url
+                        self.headers = starlette_request.headers
+                        self.query_params = starlette_request.query_params
+                        self.client = starlette_request.client
+                
+                mock_request = MockRequest(request)
+                response = await search_code_examples(mock_request, query, source_id, match_count)
+                
+                if hasattr(response, 'dict'):
+                    content = response.dict()
+                else:
+                    content = response
+                    
+                return JSONResponse(content=content)
+                
+            except Exception as e:
+                return JSONResponse(
+                    content={
+                        "success": False,
+                        "error": f"Code examples search failed: {str(e)}",
+                        "data": []
+                    },
+                    status_code=500
+                )
+        
+        async def status_endpoint_wrapper(request):
+            """Wrapper for status endpoint."""
+            try:
+                class MockRequest:
+                    def __init__(self, starlette_request):
+                        self.method = starlette_request.method
+                        self.url = starlette_request.url
+                        self.headers = starlette_request.headers
+                        self.query_params = starlette_request.query_params
+                        self.client = starlette_request.client
+                
+                mock_request = MockRequest(request)
+                response = await get_api_status(mock_request)
+                
+                return JSONResponse(content=response)
+                
+            except Exception as e:
+                return JSONResponse(
+                    content={
+                        "error": f"Status check failed: {str(e)}"
+                    },
+                    status_code=500
+                )
+        
+        # Add the HTTP API routes to the SSE app
+        api_routes = [
+            Route("/api/health", health_endpoint_wrapper, methods=["GET"]),
+            Route("/api/sources", sources_endpoint_wrapper, methods=["GET"]),
+            Route("/api/search", search_endpoint_wrapper, methods=["GET", "POST"]),
+            Route("/api/code-examples", code_examples_endpoint_wrapper, methods=["GET"]),
+            Route("/api/status", status_endpoint_wrapper, methods=["GET"]),
+        ]
+        
+        # Add routes to the SSE app
+        for route in api_routes:
+            sse_app.routes.append(route)
+        
+        print(f"✓ Added {len(api_routes)} HTTP API routes to SSE app")
+        
+        # Add middleware to the SSE app
+        from src.api.middleware import RequestLoggingMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
+        
+        try:
+            sse_app.add_middleware(SecurityHeadersMiddleware)
+            sse_app.add_middleware(RateLimitMiddleware, calls_per_minute=60)
+            sse_app.add_middleware(RequestLoggingMiddleware)
+            print("✓ Middleware added successfully")
+        except Exception as e:
+            print(f"✗ Failed to add middleware: {e}")
+        
+        # Add CORS middleware manually for Starlette
+        try:
+            from fastapi.middleware.cors import CORSMiddleware
+            import os
+            
+            # Get CORS origins from environment
+            cors_origins = os.getenv("CORS_ORIGINS", "*")
+            if cors_origins == "*":
+                allowed_origins = ["*"]
+            else:
+                allowed_origins = [origin.strip() for origin in cors_origins.split(",")]
+            
+            # Add CORS middleware to Starlette app
+            sse_app.add_middleware(
+                CORSMiddleware,
+                allow_origins=allowed_origins,
+                allow_credentials=True,
+                allow_methods=["GET", "POST", "OPTIONS"],
+                allow_headers=["Content-Type", "Authorization"],
+            )
+            print(f"✓ CORS middleware added successfully with origins: {allowed_origins}")
+        except Exception as e:
+            print(f"✗ Failed to add CORS middleware: {e}")
+        
+        print(f"✓ HTTP API integration complete - {len(sse_app.routes)} total routes")
+        
+    except Exception as e:
+        print(f"✗ Failed to integrate HTTP API: {e}")
+        ENABLE_HTTP_API = False
 
-# Add CORS middleware to the FastAPI app
-fastapi_app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+else:
+    print("HTTP API disabled - set ENABLE_HTTP_API=true to enable")
 
-# Add custom middleware components
-from src.api.middleware import RequestLoggingMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
 
-# Add security headers middleware
-fastapi_app.add_middleware(SecurityHeadersMiddleware)
-
-# Add rate limiting middleware (60 requests per minute)
-fastapi_app.add_middleware(RateLimitMiddleware, calls_per_minute=60)
-
-# Add request logging middleware (add last to capture all request details)
-fastapi_app.add_middleware(RequestLoggingMiddleware)
-
-# Include our custom API router
-fastapi_app.include_router(api_router)
-
-print(f"✓ FastAPI app created with routes: {[route.path for route in fastapi_app.routes]}")
-
-# Mount the FastAPI app to handle /api routes
-# We need to get the Starlette app to mount our FastAPI app
-sse_app = mcp.sse_app()
-print(f"✓ SSE app type: {type(sse_app)}")
-print(f"✓ SSE app routes before mount: {[route.path for route in sse_app.routes]}")
-sse_app.mount("/api", fastapi_app)
-print(f"✓ SSE app routes after mount: {[route.path for route in sse_app.routes]}")
-
-print("✓ FastMCP server initialized with custom endpoints")
-print("✓ Custom API routes mounted at /api")
 
 # Import knowledge graph modules
 from knowledge_graph_validator import KnowledgeGraphValidator
@@ -261,8 +528,8 @@ async def crawl4ai_lifespan(server: FastMCP) -> AsyncIterator[Crawl4AIContext]:
     else:
         print("Knowledge graph functionality disabled - set USE_KNOWLEDGE_GRAPH=true to enable")
     
-    # The FastAPI app is already initialized at module level with our custom endpoints
-    print("✓ Lifespan initialized - FastAPI app with custom endpoints already configured")
+    # The SSE app is already configured with our custom endpoints
+    print("✓ Lifespan initialized - SSE app with custom endpoints already configured")
     
     # Create the context with initialization flag
     context = Crawl4AIContext(
@@ -271,8 +538,7 @@ async def crawl4ai_lifespan(server: FastMCP) -> AsyncIterator[Crawl4AIContext]:
         reranking_model=reranking_model,
         knowledge_validator=knowledge_validator,
         repo_extractor=repo_extractor,
-        initialized=True,
-        fastapi_app=sse_app
+        initialized=True
     )
     
     print("Crawl4AI MCP server initialization complete!")
@@ -2783,7 +3049,7 @@ async def main():
         # For SSE transport, we run the FastAPI app which includes both MCP and custom endpoints
         try:
             logger.info(f"Starting FastAPI server with MCP support on {host}:{port}")
-            logger.info(f"FastAPI app routes: {[route.path for route in fastapi_app.routes]}")
+            logger.info(f"SSE app routes: {[route.path for route in sse_app.routes]}")
             
             # Run the FastMCP SSE server which includes our custom endpoints
             config = uvicorn.Config(

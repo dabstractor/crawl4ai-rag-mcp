@@ -11,7 +11,7 @@ from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field
 import logging
 
-from .responses import APIResponse, HealthResponse, SourcesResponse, SearchResponse, SourceResponse, SourcesListResponse
+from .responses import APIResponse, HealthResponse, SourcesResponse, SearchResponse, SourceResponse, SourcesListResponse, SearchResultData
 
 # Configure logger for HTTP API
 logger = logging.getLogger("http_api")
@@ -27,11 +27,8 @@ class SearchRequest(BaseModel):
     match_count: int = Field(5, description="Number of results to return", ge=1, le=50)
 
 
-class HealthCheck(BaseModel):
-    """Health check response model."""
-    status: str = Field("healthy", description="Service status")
-    version: str = Field("1.0.0", description="API version")
-    mcp_connected: bool = Field(True, description="MCP server connection status")
+# Import HealthData from responses module
+from .responses import HealthData
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -73,7 +70,7 @@ async def health_check(request: Request) -> HealthResponse:
         
         # Create health check data
         health_status = "healthy" if mcp_connected and mcp_tools_available else "unhealthy"
-        health_data = HealthCheck(
+        health_data = HealthData(
             status=health_status,
             version="1.0.0",
             mcp_connected=mcp_connected,
@@ -93,7 +90,7 @@ async def health_check(request: Request) -> HealthResponse:
         return HealthResponse(
             success=False,
             error=f"Health check failed: {str(e)}",
-            data=HealthCheck(
+            data=HealthData(
                 status="unhealthy",
                 version="1.0.0",
                 mcp_connected=False
@@ -276,18 +273,111 @@ async def search_documents_post(
         SearchResponse: Search results with metadata
     """
     try:
-        # TODO: Implement RAG search via MCP server
-        # This will call perform_rag_query MCP tool
-        logger.info(f"POST Search requested: {search_request}")
+        logger.info(f"POST Search requested: query='{search_request.query}', source='{search_request.source}', match_count={search_request.match_count}")
         
-        # Placeholder response  
-        return SearchResponse(
+        # Validate query parameters
+        from ..utils.http_helpers import validate_query_params
+        validation_result = validate_query_params(search_request.query, search_request.match_count, search_request.source)
+        if not validation_result["valid"]:
+            raise ValueError("; ".join(validation_result["errors"]))
+        
+        # Import utility functions
+        from ..utils.http_helpers import async_with_timeout, parse_mcp_response
+        
+        # Import the global MCP instance
+        from ..crawl4ai_mcp import mcp
+        
+        # Validate and prepare parameters
+        params = validation_result["params"]
+        
+        # Call MCP tool to perform RAG search
+        logger.info(f"Calling perform_rag_query MCP tool with query: {params['query']}")
+        mcp_response = await async_with_timeout(
+            mcp.tools.perform_rag_query(
+                query=params["query"],
+                source=params["source"],
+                match_count=params["match_count"]
+            ),
+            timeout_seconds=60.0  # Longer timeout for search operations
+        )
+        
+        # Parse the MCP response
+        parsed_response = parse_mcp_response(mcp_response)
+        
+        # Handle different response types
+        if parsed_response.get("type") == "error":
+            raise Exception(f"MCP tool error: {parsed_response.get('error')}")
+        
+        # Extract search results from response
+        search_results = []
+        if "data" in parsed_response:
+            search_results = parsed_response["data"]
+        elif "content" in parsed_response and isinstance(parsed_response["content"], (list, dict)):
+            search_results = parsed_response["content"] if isinstance(parsed_response["content"], list) else [parsed_response["content"]]
+        else:
+            # Try to parse as JSON if it's a string
+            import json
+            try:
+                if isinstance(mcp_response, str):
+                    search_results = json.loads(mcp_response)
+                else:
+                    search_results = mcp_response if isinstance(mcp_response, list) else [mcp_response]
+            except json.JSONDecodeError:
+                search_results = [{"raw_response": str(mcp_response)}]
+        
+        # Convert to SearchResultData objects
+        formatted_results = []
+        if isinstance(search_results, list):
+            for i, item in enumerate(search_results):
+                if isinstance(item, dict):
+                    result_data = SearchResultData(
+                        id=item.get("id", f"result_{i}"),
+                        title=item.get("title", item.get("source_id", "Search Result")),
+                        content=item.get("content", "")[:5000],  # Respect max_length
+                        url=item.get("url"),
+                        source_id=item.get("source_id", item.get("source")),
+                        relevance_score=float(item.get("relevance_score", item.get("score", 0.0))),
+                        metadata=item.get("metadata", {}),
+                        snippet_start=item.get("snippet_start"),
+                        snippet_end=item.get("snippet_end")
+                    )
+                    formatted_results.append(result_data)
+        elif isinstance(search_results, dict):
+            # Single result object
+            result_data = SearchResultData(
+                id=search_results.get("id", "result_0"),
+                title=search_results.get("title", search_results.get("source_id", "Search Result")),
+                content=search_results.get("content", "")[:5000],  # Respect max_length
+                url=search_results.get("url"),
+                source_id=search_results.get("source_id", search_results.get("source")),
+                relevance_score=float(search_results.get("relevance_score", search_results.get("score", 0.0))),
+                metadata=search_results.get("metadata", {}),
+                snippet_start=search_results.get("snippet_start"),
+                snippet_end=search_results.get("snippet_end")
+            )
+            formatted_results.append(result_data)
+        
+        logger.info(f"POST Search completed: found {len(formatted_results)} results")
+        
+        response = SearchResponse(
             success=True,
-            data=[],
-            message=f"Search completed for query: {search_request.query}"
+            data=formatted_results,
+            message=f"Search completed successfully. Found {len(formatted_results)} results."
+        )
+        response.query = params["query"]
+        response.total_results = len(formatted_results)
+        
+        return response
+        
+    except ValueError as e:
+        logger.error(f"POST Search parameter validation failed: {e}")
+        return SearchResponse(
+            success=False,
+            error=f"Invalid search parameters: {str(e)}",
+            data=[]
         )
     except Exception as e:
-        logger.error(f"POST Search failed: {e}")
+        logger.error(f"POST Search failed: {e}", exc_info=True)
         return SearchResponse(
             success=False,
             error=f"Search failed: {str(e)}",

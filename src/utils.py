@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 import openai
 import re
 import time
-from postgresql_adapter import PostgreSQLAdapter
+from src.postgresql_adapter import PostgreSQLAdapter
 
 # Load OpenAI API key for embeddings
 openai.api_key = os.getenv("OPENAI_API_KEY")
