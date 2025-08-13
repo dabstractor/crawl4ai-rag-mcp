@@ -247,15 +247,106 @@
         "id": 12,
         "title": "Implement Request Logging Middleware",
         "description": "Create middleware for logging HTTP requests and responses.",
-        "details": "In src/api/middleware.py, implement request logging middleware that:\n1. Logs incoming requests with method, path, and query parameters\n2. Logs response status codes and timing information\n3. Includes correlation IDs for request tracking\n4. Configurable log levels based on environment\n\nImplement using FastAPI middleware. Include timing information to help identify slow endpoints. Use Python's logging module with proper formatting. Example:\n```python\nimport time\nimport uuid\nimport logging\nfrom fastapi import FastAPI, Request\nfrom starlette.middleware.base import BaseHTTPMiddleware\n\nlogger = logging.getLogger(__name__)\n\nclass RequestLoggingMiddleware(BaseHTTPMiddleware):\n    async def dispatch(self, request: Request, call_next):\n        request_id = str(uuid.uuid4())\n        start_time = time.time()\n        \n        # Log request\n        logger.info(f\"Request {request_id}: {request.method} {request.url.path}\")\n        \n        # Process request\n        try:\n            response = await call_next(request)\n            process_time = time.time() - start_time\n            \n            # Log response\n            logger.info(\n                f\"Response {request_id}: {response.status_code} completed in {process_time:.3f}s\"\n            )\n            \n            # Add custom headers\n            response.headers[\"X-Process-Time\"] = str(process_time)\n            response.headers[\"X-Request-ID\"] = request_id\n            \n            return response\n        except Exception as e:\n            process_time = time.time() - start_time\n            logger.error(\n                f\"Error {request_id}: {str(e)} after {process_time:.3f}s\"\n            )\n            raise\n\ndef add_logging_middleware(app: FastAPI):\n    app.add_middleware(RequestLoggingMiddleware)\n```",
-        "testStrategy": "Test the logging middleware by sending various requests and verifying that they're correctly logged. Test error scenarios and verify that errors are properly logged. Check that timing information is accurate and that correlation IDs are consistent across log entries.",
-        "priority": "medium",
+        "status": "done",
         "dependencies": [
           3,
           11
         ],
-        "status": "pending",
-        "subtasks": []
+        "priority": "medium",
+        "details": "In src/api/middleware.py, implement request logging middleware that:\n1. Logs incoming requests with method, path, and query parameters\n2. Logs response status codes and timing information\n3. Includes correlation IDs for request tracking\n4. Configurable log levels based on environment\n\nImplement using FastAPI middleware. Include timing information to help identify slow endpoints. Use Python's logging module with proper formatting. Example:\n```python\nimport time\nimport uuid\nimport logging\nfrom fastapi import FastAPI, Request\nfrom starlette.middleware.base import BaseHTTPMiddleware\n\nlogger = logging.getLogger(__name__)\n\nclass RequestLoggingMiddleware(BaseHTTPMiddleware):\n    async def dispatch(self, request: Request, call_next):\n        request_id = str(uuid.uuid4())\n        start_time = time.time()\n        \n        # Log request\n        logger.info(f\"Request {request_id}: {request.method} {request.url.path}\")\n        \n        # Process request\n        try:\n            response = await call_next(request)\n            process_time = time.time() - start_time\n            \n            # Log response\n            logger.info(\n                f\"Response {request_id}: {response.status_code} completed in {process_time:.3f}s\"\n            )\n            \n            # Add custom headers\n            response.headers[\"X-Process-Time\"] = str(process_time)\n            response.headers[\"X-Request-ID\"] = request_id\n            \n            return response\n        except Exception as e:\n            process_time = time.time() - start_time\n            logger.error(\n                f\"Error {request_id}: {str(e)} after {process_time:.3f}s\"\n            )\n            raise\n\ndef add_logging_middleware(app: FastAPI):\n    app.add_middleware(RequestLoggingMiddleware)\n```",
+        "testStrategy": "Test the logging middleware by sending various requests and verifying that they're correctly logged. Test error scenarios and verify that errors are properly logged. Check that timing information is accurate and that correlation IDs are consistent across log entries. Verify that the REQUEST_LOG_LEVEL environment variable correctly controls log levels. Test the X-Request-ID header in responses and confirm it matches the logged request ID. Test the client IP detection with various header configurations (X-Forwarded-For, X-Real-IP).",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement RequestLoggingMiddleware with correlation IDs",
+            "description": "Added correlation IDs (UUID) for request tracking across log entries",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Add query parameters logging with structured data",
+            "description": "Implemented structured logging of query parameters for better searchability",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement configurable log levels",
+            "description": "Added support for configurable log levels via REQUEST_LOG_LEVEL environment variable",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Enhance timing information with detailed metrics",
+            "description": "Added detailed timing metrics for better performance monitoring",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Improve error handling with full context logging",
+            "description": "Enhanced error handling to include full context and stack traces in logs",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Add structured logging with extra fields",
+            "description": "Implemented structured logging with additional fields for better observability",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Add X-Request-ID header to responses",
+            "description": "Added X-Request-ID header to responses for client-side request tracking",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 8,
+            "title": "Extract get_client_ip utility function",
+            "description": "Created utility function to extract client IP from various headers to avoid code duplication",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 9,
+            "title": "Write tests for RequestLoggingMiddleware",
+            "description": "Create comprehensive tests to verify all middleware functionality including request/response logging, error handling, and header processing",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 10,
+            "title": "Verify middleware integration with application",
+            "description": "Test the middleware in the context of the full application to ensure proper integration",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 13,
@@ -547,7 +638,7 @@
     ],
     "metadata": {
       "created": "2025-08-12T02:51:56.687Z",
-      "updated": "2025-08-13T20:38:01.171Z",
+      "updated": "2025-08-13T21:28:17.027Z",
       "description": "Tasks for master context"
     }
   }

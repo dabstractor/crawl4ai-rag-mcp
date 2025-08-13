@@ -16,35 +16,130 @@ import logging
 import json
 import os
 import traceback
+import uuid
 from collections import defaultdict
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
 
+def get_client_ip(request: Request) -> str:
+    """
+    Extract client IP from request with forwarded header support.
+    
+    This utility function checks for common forwarded headers before
+    falling back to the direct client IP.
+    
+    Args:
+        request: FastAPI Request object
+        
+    Returns:
+        str: Client IP address or "unknown" if not available
+    """
+    # Check for forwarded headers first (common in production with proxies)
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip
+    
+    # Fall back to client host
+    return getattr(request.client, "host", "unknown") if request.client else "unknown"
+
+
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
-    """Middleware for logging HTTP requests and responses."""
+    """
+    Enhanced middleware for logging HTTP requests and responses.
+    
+    Features:
+    - Correlation IDs for request tracking
+    - Query parameters logging
+    - Configurable log levels based on environment
+    - Detailed timing information
+    - Error handling with proper logging
+    """
+    
+    def __init__(self, app: ASGIApp):
+        super().__init__(app)
+        # Configure log level based on environment
+        self.log_level = self._get_log_level()
+        
+    def _get_log_level(self) -> int:
+        """Get log level from environment variable."""
+        log_level_str = os.getenv("REQUEST_LOG_LEVEL", "INFO").upper()
+        return getattr(logging, log_level_str, logging.INFO)
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        """Log request and response details."""
+        """Log request and response details with correlation ID."""
+        # Generate correlation ID for request tracking
+        request_id = str(uuid.uuid4())
         start_time = time.time()
         
-        # Log request
-        logger.info(f"Request: {request.method} {request.url}")
+        # Extract query parameters
+        query_params = dict(request.query_params) if request.query_params else {}
+        query_str = f"?{str(request.query_params)}" if query_params else ""
         
-        # Process request
-        response = await call_next(request)
+        # Log request details
+        if logger.isEnabledFor(self.log_level):
+            logger.log(
+                self.log_level,
+                f"Request {request_id}: {request.method} {request.url.path}{query_str}",
+                extra={
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "query_params": query_params,
+                    "client_ip": get_client_ip(request),
+                    "user_agent": request.headers.get("User-Agent", "unknown")
+                }
+            )
         
-        # Calculate duration
-        duration = time.time() - start_time
-        
-        # Log response
-        logger.info(f"Response: {response.status_code} - Duration: {duration:.3f}s")
-        
-        # Add timing header
-        response.headers["X-Process-Time"] = str(duration)
-        
-        return response
+        # Process request with error handling
+        try:
+            response = await call_next(request)
+            process_time = time.time() - start_time
+            
+            # Log successful response
+            if logger.isEnabledFor(self.log_level):
+                logger.log(
+                    self.log_level,
+                    f"Response {request_id}: {response.status_code} completed in {process_time:.3f}s",
+                    extra={
+                        "request_id": request_id,
+                        "status_code": response.status_code,
+                        "process_time": process_time,
+                        "response_size": response.headers.get("Content-Length", "unknown")
+                    }
+                )
+            
+            # Add custom headers
+            response.headers["X-Process-Time"] = str(process_time)
+            response.headers["X-Request-ID"] = request_id
+            
+            return response
+            
+        except Exception as e:
+            process_time = time.time() - start_time
+            
+            # Log error with full context
+            logger.error(
+                f"Error {request_id}: {str(e)} after {process_time:.3f}s",
+                extra={
+                    "request_id": request_id,
+                    "method": request.method,
+                    "path": request.url.path,
+                    "query_params": query_params,
+                    "process_time": process_time,
+                    "error_type": type(e).__name__,
+                    "client_ip": get_client_ip(request)
+                },
+                exc_info=True
+            )
+            
+            # Re-raise the exception to be handled by error middleware
+            raise
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
@@ -57,7 +152,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Apply rate limiting based on client IP."""
-        client_ip = self._get_client_ip(request)
+        client_ip = get_client_ip(request)
         now = datetime.now()
         minute_ago = now - timedelta(minutes=1)
         
@@ -93,20 +188,6 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         response.headers["X-RateLimit-Reset"] = str(int((now + timedelta(minutes=1)).timestamp()))
         
         return response
-    
-    def _get_client_ip(self, request: Request) -> str:
-        """Extract client IP from request."""
-        # Check for forwarded headers first
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        if forwarded_for:
-            return forwarded_for.split(",")[0].strip()
-        
-        real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
-            return real_ip
-        
-        # Fall back to client host
-        return getattr(request.client, "host", "unknown")
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
