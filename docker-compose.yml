@@ -45,6 +45,12 @@ services:
       # Override Supabase settings to use local PostgreSQL
       - SUPABASE_URL=postgresql://crawl4ai_user:crawl4ai_secure_password_2024@postgres:5432/crawl4ai_rag
       - SUPABASE_SERVICE_KEY=dummy_key_for_local_postgres
+      # HTTP API Configuration
+      - ENABLE_HTTP_API=${ENABLE_HTTP_API:-true}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3741,http://127.0.0.1:3741,http://localhost:3000}
+      - API_RATE_LIMIT=${API_RATE_LIMIT:-60}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - RATE_LIMIT_ENABLED=${RATE_LIMIT_ENABLED:-true}
     env_file:
       - .env
     ports:
@@ -61,6 +67,12 @@ services:
       - ./data:/app/data
       - ./logs:/app/logs
       - ./src:/app/src
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8051/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     logging:
       driver: "json-file"
       options:
@@ -122,7 +134,8 @@ services:
     ports:
       - "3741:3741"  # Unusual port to avoid conflicts
     depends_on:
-      - mcp-crawl4ai
+      mcp-crawl4ai:
+        condition: service_healthy
     networks:
       - crawl4ai-network
     logging:
