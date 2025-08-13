@@ -22,7 +22,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 try:
     from fastapi import Request, Response, FastAPI
     from starlette.types import ASGIApp
-    from src.api.middleware import RequestLoggingMiddleware, get_client_ip
+    from src.api.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware, get_client_ip
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
@@ -255,6 +255,116 @@ class TestGetClientIPUtility(unittest.TestCase):
         
         client_ip = get_client_ip(request)
         self.assertEqual(client_ip, "unknown")
+
+
+class TestSecurityHeadersMiddleware(unittest.TestCase):
+    """Test SecurityHeadersMiddleware functionality."""
+    
+    def setUp(self):
+        """Set up test fixtures."""
+        if not FASTAPI_AVAILABLE:
+            self.skipTest("FastAPI not available")
+            
+        # Create mock app
+        self.mock_app = Mock(spec=ASGIApp)
+        self.middleware = SecurityHeadersMiddleware(self.mock_app)
+        
+    def create_mock_request(self, method="GET", path="/test"):
+        """Create a mock request object."""
+        request = Mock(spec=Request)
+        request.method = method
+        request.url.path = path
+        return request
+        
+    def create_mock_response(self, status_code=200, headers=None):
+        """Create a mock response object."""
+        response = Mock(spec=Response)
+        response.status_code = status_code
+        if headers is None:
+            headers = {}
+        response.headers = headers
+        return response
+
+    async def test_basic_security_headers(self):
+        """Test that basic security headers are added."""
+        request = self.create_mock_request("GET", "/api/test")
+        response = self.create_mock_response(200)
+        
+        # Mock the call_next function
+        call_next = Mock(return_value=response)
+        
+        # Process request
+        result = await self.middleware.dispatch(request, call_next)
+        
+        # Verify security headers are present
+        self.assertEqual(result.headers["X-Content-Type-Options"], "nosniff")
+        self.assertEqual(result.headers["X-Frame-Options"], "DENY")
+        self.assertEqual(result.headers["X-XSS-Protection"], "1; mode=block")
+        self.assertIn("Content-Security-Policy", result.headers)
+        
+    async def test_default_csp_header(self):
+        """Test that default CSP header is set when no env var."""
+        request = self.create_mock_request("GET", "/api/test")
+        response = self.create_mock_response(200)
+        
+        # Ensure no CSP env var is set
+        if "CONTENT_SECURITY_POLICY" in os.environ:
+            del os.environ["CONTENT_SECURITY_POLICY"]
+            
+        call_next = Mock(return_value=response)
+        result = await self.middleware.dispatch(request, call_next)
+        
+        expected_csp = "default-src 'self'; script-src 'self'; connect-src 'self'"
+        self.assertEqual(result.headers["Content-Security-Policy"], expected_csp)
+        
+    @patch.dict(os.environ, {"CONTENT_SECURITY_POLICY": "default-src 'none'; script-src 'self'"})
+    async def test_custom_csp_header(self):
+        """Test that custom CSP header from env var is used."""
+        request = self.create_mock_request("GET", "/api/test")
+        response = self.create_mock_response(200)
+        
+        call_next = Mock(return_value=response)
+        result = await self.middleware.dispatch(request, call_next)
+        
+        expected_csp = "default-src 'none'; script-src 'self'"
+        self.assertEqual(result.headers["Content-Security-Policy"], expected_csp)
+        
+    @patch.dict(os.environ, {"ENABLE_HTTPS": "true"})
+    async def test_hsts_header_when_https_enabled(self):
+        """Test that HSTS header is added when HTTPS is enabled."""
+        request = self.create_mock_request("GET", "/api/test")
+        response = self.create_mock_response(200)
+        
+        call_next = Mock(return_value=response)
+        result = await self.middleware.dispatch(request, call_next)
+        
+        expected_hsts = "max-age=31536000; includeSubDomains"
+        self.assertEqual(result.headers["Strict-Transport-Security"], expected_hsts)
+        
+    @patch.dict(os.environ, {"ENABLE_HTTPS": "false"})
+    async def test_no_hsts_header_when_https_disabled(self):
+        """Test that HSTS header is not added when HTTPS is disabled."""
+        request = self.create_mock_request("GET", "/api/test")
+        response = self.create_mock_response(200)
+        
+        call_next = Mock(return_value=response)
+        result = await self.middleware.dispatch(request, call_next)
+        
+        self.assertNotIn("Strict-Transport-Security", result.headers)
+        
+    async def test_hsts_header_default_behavior(self):
+        """Test that HSTS header is not added by default (no env var)."""
+        request = self.create_mock_request("GET", "/api/test")
+        response = self.create_mock_response(200)
+        
+        # Ensure no HTTPS env var is set
+        if "ENABLE_HTTPS" in os.environ:
+            del os.environ["ENABLE_HTTPS"]
+            
+        call_next = Mock(return_value=response)
+        result = await self.middleware.dispatch(request, call_next)
+        
+        self.assertNotIn("Strict-Transport-Security", result.headers)
 
 
 if __name__ == '__main__':

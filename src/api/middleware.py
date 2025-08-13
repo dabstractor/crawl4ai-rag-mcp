@@ -228,7 +228,17 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """Middleware to add security headers to responses."""
+    """
+    Middleware to add security headers to all HTTP responses.
+    
+    Features:
+    - Content-Security-Policy headers
+    - X-Content-Type-Options: nosniff
+    - X-Frame-Options: DENY
+    - Strict-Transport-Security headers (if HTTPS enabled)
+    - X-XSS-Protection headers
+    - Configurable via environment variables
+    """
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """Add security headers to response."""
@@ -238,17 +248,30 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Content-Type-Options"] = "nosniff"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Content-Security-Policy"] = (
-            "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'; "
-            "img-src 'self' data: https:; "
-            "connect-src 'self' https:; "
-            "frame-ancestors 'none';"
+        
+        # Add HSTS header if HTTPS is enabled
+        if os.getenv("ENABLE_HTTPS", "false").lower() == "true":
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        
+        # Add CSP header with configurable value
+        csp_value = os.getenv(
+            "CONTENT_SECURITY_POLICY",
+            "default-src 'self'; script-src 'self'; connect-src 'self'"
         )
+        response.headers["Content-Security-Policy"] = csp_value
         
         return response
+
+
+def add_security_headers(app) -> None:
+    """
+    Add security headers middleware to the FastAPI app.
+    
+    Args:
+        app: FastAPI application instance
+    """
+    app.add_middleware(SecurityHeadersMiddleware)
+    logger.info("Security headers middleware added")
 
 
 def setup_cors_middleware(app, allowed_origins: list = None) -> None:
