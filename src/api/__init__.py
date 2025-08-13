@@ -12,9 +12,11 @@ __author__ = "Crawl4AI MCP HTTP API"
 from .endpoints import *
 from .middleware import *
 from .responses import *
+from .monitoring import *
 
 __all__ = [
     'endpoints',
     'middleware', 
-    'responses'
+    'responses',
+    'monitoring'
 ]

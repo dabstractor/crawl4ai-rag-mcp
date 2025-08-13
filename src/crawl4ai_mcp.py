@@ -332,11 +332,13 @@ if ENABLE_HTTP_API:
         
         # Add middleware to the SSE app
         from src.api.middleware import RequestLoggingMiddleware, RateLimitMiddleware, SecurityHeadersMiddleware
+        from src.api.monitoring import PerformanceMonitoringMiddleware, add_performance_monitoring
         
         try:
             sse_app.add_middleware(SecurityHeadersMiddleware)
-            sse_app.add_middleware(RateLimitMiddleware, calls_per_minute=60)
+            sse_app.add_middleware(RateLimitMiddleware, requests_per_minute=60)
             sse_app.add_middleware(RequestLoggingMiddleware)
+            sse_app.add_middleware(PerformanceMonitoringMiddleware)
             print("✓ Middleware added successfully")
         except Exception as e:
             print(f"✗ Failed to add middleware: {e}")
@@ -364,6 +366,13 @@ if ENABLE_HTTP_API:
             print(f"✓ CORS middleware added successfully with origins: {allowed_origins}")
         except Exception as e:
             print(f"✗ Failed to add CORS middleware: {e}")
+        
+        # Add performance monitoring
+        try:
+            add_performance_monitoring(sse_app, metrics_port=8000)
+            print("✓ Performance monitoring added successfully")
+        except Exception as e:
+            print(f"✗ Failed to add performance monitoring: {e}")
         
         print(f"✓ HTTP API integration complete - {len(sse_app.routes)} total routes")
         
