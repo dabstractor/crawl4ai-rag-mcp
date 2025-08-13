@@ -3038,6 +3038,9 @@ async def main():
     logger = logging.getLogger("http_api")
     logger.info("Starting Crawl4AI MCP HTTP API server...")
     
+    # Setup graceful shutdown handling
+    from src.shutdown import setup_graceful_shutdown, add_shutdown_callback, cleanup_resources
+    
     # Get port from environment or default
     port = int(os.getenv("PORT", "8051"))
     host = os.getenv("HOST", "0.0.0.0")
@@ -3050,6 +3053,20 @@ async def main():
         try:
             logger.info(f"Starting FastAPI server with MCP support on {host}:{port}")
             logger.info(f"SSE app routes: {[route.path for route in sse_app.routes]}")
+            
+            # Setup graceful shutdown for the SSE app
+            shutdown_handler = setup_graceful_shutdown(sse_app)
+            
+            # Add default cleanup callback
+            add_shutdown_callback(cleanup_resources)
+            
+            # Add cleanup for any database connections or other resources
+            async def close_supabase_connections():
+                """Close Supabase connections on shutdown."""
+                logger.info("Closing Supabase connections...")
+                # The Supabase client handles its own connection cleanup
+                
+            add_shutdown_callback(close_supabase_connections)
             
             # Run the FastMCP SSE server which includes our custom endpoints
             config = uvicorn.Config(
@@ -3065,6 +3082,10 @@ async def main():
             raise
         
     else:
+        # For stdio transport, setup graceful shutdown without app
+        shutdown_handler = setup_graceful_shutdown()
+        add_shutdown_callback(cleanup_resources)
+        
         # Run the MCP server with stdio transport only
         await mcp.run_stdio_async()
 
