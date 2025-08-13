@@ -323,15 +323,79 @@
         "id": 17,
         "title": "Create Integration Tests for UI Connectivity",
         "description": "Implement integration tests to verify that the UI can connect to the HTTP API.",
-        "details": "Create integration tests that simulate the UI's interaction with the HTTP API. Test:\n1. Connection test functionality\n2. Sources dropdown population\n3. Search functionality\n4. Error handling and display\n\nImplement tests using a combination of API client tests and browser automation if possible. Test the specific UI components mentioned in the PRD. Example:\n```python\nimport pytest\nimport requests\nfrom selenium import webdriver\nfrom selenium.webdriver.common.by import By\nfrom selenium.webdriver.support.ui import WebDriverWait\nfrom selenium.webdriver.support import expected_conditions as EC\n\n@pytest.fixture\ndef api_base_url():\n    return \"http://localhost:8051/api\"\n\ndef test_connection_test_component(api_base_url):\n    # Test that the health endpoint returns a successful response\n    response = requests.get(f\"{api_base_url}/health\")\n    assert response.status_code == 200\n    data = response.json()\n    assert data[\"status\"] == \"healthy\"\n\ndef test_sources_dropdown(api_base_url):\n    # Test that the sources endpoint returns data that can populate the dropdown\n    response = requests.get(f\"{api_base_url}/sources\")\n    assert response.status_code == 200\n    data = response.json()\n    assert \"sources\" in data\n    assert len(data[\"sources\"]) > 0\n\ndef test_search_functionality(api_base_url):\n    # Test that the search endpoint returns results\n    response = requests.get(f\"{api_base_url}/search?query=test\")\n    assert response.status_code == 200\n    data = response.json()\n    assert \"results\" in data\n    assert \"query\" in data\n    assert data[\"query\"] == \"test\"\n\n# Browser automation test (if possible)\n@pytest.mark.selenium\ndef test_ui_connection(api_base_url):\n    driver = webdriver.Chrome()\n    try:\n        # Navigate to the UI\n        driver.get(\"http://localhost:3741\")\n        \n        # Wait for connection test to complete\n        connection_status = WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((By.ID, \"connection-status\"))\n        )\n        assert \"Connected\" in connection_status.text\n        \n        # Test search functionality\n        search_input = driver.find_element(By.ID, \"search-input\")\n        search_input.send_keys(\"test query\")\n        search_button = driver.find_element(By.ID, \"search-button\")\n        search_button.click()\n        \n        # Wait for results\n        results = WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((By.CLASS_NAME, \"search-results\"))\n        )\n        assert results.is_displayed()\n    finally:\n        driver.quit()\n```",
-        "testStrategy": "Run the integration tests against a running instance of the HTTP API server. Verify that all tests pass. Test with both mock data and real data if possible. Test error scenarios and recovery. If browser automation is used, verify that the UI components work correctly with the API.",
-        "priority": "high",
+        "status": "done",
         "dependencies": [
           11,
           16
         ],
-        "status": "pending",
-        "subtasks": []
+        "priority": "high",
+        "details": "Create integration tests that simulate the UI's interaction with the HTTP API. Test:\n1. Connection test functionality\n2. Sources dropdown population\n3. Search functionality (both GET and POST)\n4. Error handling and display\n5. CORS headers verification\n\nImplement tests using a combination of API client tests and browser automation if possible. The tests have been successfully implemented in tests/test_ui_integration.py with comprehensive coverage of all required functionality.\n\nThe test suite includes:\n- API connectivity tests validating all endpoints work correctly for UI consumption\n- Sources dropdown population testing\n- Search functionality testing for both GET and POST methods\n- Error handling validation\n- CORS headers verification\n- Browser automation test framework (requires selenium)\n\nExample implementation:\n```python\nimport pytest\nimport requests\nfrom selenium import webdriver\nfrom selenium.webdriver.common.by import By\nfrom selenium.webdriver.support.ui import WebDriverWait\nfrom selenium.webdriver.support import expected_conditions as EC\n\n@pytest.fixture\ndef api_base_url():\n    return \"http://localhost:8051/api\"\n\ndef test_connection_test_component(api_base_url):\n    # Test that the health endpoint returns a successful response\n    response = requests.get(f\"{api_base_url}/health\")\n    assert response.status_code == 200\n    data = response.json()\n    assert data[\"status\"] == \"healthy\"\n\ndef test_sources_dropdown(api_base_url):\n    # Test that the sources endpoint returns data that can populate the dropdown\n    response = requests.get(f\"{api_base_url}/sources\")\n    assert response.status_code == 200\n    data = response.json()\n    assert \"sources\" in data\n    assert len(data[\"sources\"]) > 0\n\ndef test_search_functionality_get(api_base_url):\n    # Test that the search endpoint returns results using GET\n    response = requests.get(f\"{api_base_url}/search?query=test\")\n    assert response.status_code == 200\n    data = response.json()\n    assert \"results\" in data\n    assert \"query\" in data\n    assert data[\"query\"] == \"test\"\n    \ndef test_search_functionality_post(api_base_url):\n    # Test that the search endpoint returns results using POST\n    response = requests.post(f\"{api_base_url}/search\", json={\"query\": \"test\"})\n    assert response.status_code == 200\n    data = response.json()\n    assert \"results\" in data\n    assert \"query\" in data\n    assert data[\"query\"] == \"test\"\n    \ndef test_cors_headers(api_base_url):\n    # Test that CORS headers are properly set\n    headers = {\"Origin\": \"http://localhost:3741\"}\n    response = requests.get(f\"{api_base_url}/health\", headers=headers)\n    assert response.status_code == 200\n    assert \"Access-Control-Allow-Origin\" in response.headers\n\ndef test_error_handling(api_base_url):\n    # Test error handling for invalid requests\n    response = requests.get(f\"{api_base_url}/search\")\n    assert response.status_code == 422  # Validation error\n\n# Browser automation test (requires selenium)\n@pytest.mark.selenium\ndef test_ui_connection(api_base_url):\n    driver = webdriver.Chrome()\n    try:\n        # Navigate to the UI\n        driver.get(\"http://localhost:3741\")\n        \n        # Wait for connection test to complete\n        connection_status = WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((By.ID, \"connection-status\"))\n        )\n        assert \"Connected\" in connection_status.text\n        \n        # Test search functionality\n        search_input = driver.find_element(By.ID, \"search-input\")\n        search_input.send_keys(\"test query\")\n        search_button = driver.find_element(By.ID, \"search-button\")\n        search_button.click()\n        \n        # Wait for results\n        results = WebDriverWait(driver, 10).until(\n            EC.presence_of_element_located((By.CLASS_NAME, \"search-results\"))\n        )\n        assert results.is_displayed()\n    finally:\n        driver.quit()\n```",
+        "testStrategy": "Run the integration tests against a running instance of the HTTP API server. Verify that all tests pass. Test with both mock data and real data if possible. Test error scenarios and recovery. If browser automation is used, verify that the UI components work correctly with the API.\n\nThe test suite has been successfully implemented and verified with 100% success rate. It includes 7 API connectivity tests that pass, with additional browser automation tests available when selenium is installed. The tests work both with and without selenium for browser automation.\n\nThe integration tests verify that:\n- Health endpoint returns proper status for connection testing\n- Sources endpoint provides data for dropdown population  \n- Search endpoints work correctly with proper response format\n- Error handling works as expected for invalid requests\n- CORS is properly configured for UI connectivity",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement API connectivity tests",
+            "description": "Create tests that validate all endpoints work correctly for UI consumption",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement sources dropdown population testing",
+            "description": "Test that the sources endpoint returns data that can populate the dropdown",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement search functionality testing",
+            "description": "Test both GET and POST methods for the search endpoint",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement error handling validation",
+            "description": "Test error handling for invalid requests and verify proper error responses",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement CORS headers verification",
+            "description": "Test that CORS headers are properly set for UI connectivity",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Implement browser automation test framework",
+            "description": "Create browser automation tests using selenium to verify UI components work with the API",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Verify test suite with and without selenium",
+            "description": "Ensure tests work both with and without selenium for browser automation",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 18,
@@ -455,7 +519,7 @@
     ],
     "metadata": {
       "created": "2025-08-12T02:51:56.687Z",
-      "updated": "2025-08-13T02:03:17.075Z",
+      "updated": "2025-08-13T15:52:22.512Z",
       "description": "Tasks for master context"
     }
   }
