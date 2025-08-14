@@ -8,6 +8,7 @@ across all HTTP endpoints.
 from pydantic import BaseModel, Field, validator, ConfigDict
 from typing import List, Dict, Any, Optional, Union, Generic, TypeVar
 from datetime import datetime
+import json
 
 # Generic type for response data
 T = TypeVar('T')
@@ -15,11 +16,17 @@ T = TypeVar('T')
 
 class APIResponse(BaseModel, Generic[T]):
     """Base response model for all API endpoints."""
+    model_config = ConfigDict(
+        json_encoders={
+            datetime: lambda v: v.isoformat() if v else None
+        }
+    )
+    
     success: bool = Field(..., description="Whether the request was successful")
     data: Optional[T] = Field(None, description="Response data")
     error: Optional[str] = Field(None, description="Error message if request failed")
     message: Optional[str] = Field(None, description="Additional message or context")
-    timestamp: datetime = Field(default_factory=datetime.now, description="Response timestamp")
+    # timestamp: datetime = Field(default_factory=datetime.now, description="Response timestamp")  # Temporarily disabled for JSON serialization
 
 
 class HealthData(BaseModel):
@@ -38,6 +45,12 @@ class HealthResponse(APIResponse[HealthData]):
 
 class SourceData(BaseModel):
     """Data model for a single source."""
+    model_config = ConfigDict(
+        json_encoders={
+            datetime: lambda v: v.isoformat() if v else None
+        }
+    )
+    
     source_id: str = Field(..., description="Unique source identifier")
     name: str = Field(..., description="Human-readable source name")
     url: Optional[str] = Field(None, description="Source URL if applicable")

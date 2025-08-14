@@ -6,3 +6,4 @@ repos
 .claude
 test_script_hallucination*
 logs
+k6*

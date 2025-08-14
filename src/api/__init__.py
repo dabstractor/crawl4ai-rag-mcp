@@ -12,11 +12,11 @@ __author__ = "Crawl4AI MCP HTTP API"
 from .endpoints import *
 from .middleware import *
 from .responses import *
-from .monitoring import *
+# from .monitoring import *  # Temporarily commented out due to missing prometheus_client
 
 __all__ = [
     'endpoints',
     'middleware', 
     'responses',
-    'monitoring'
+    # 'monitoring'
 ]
