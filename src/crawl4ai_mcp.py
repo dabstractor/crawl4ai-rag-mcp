@@ -315,6 +315,38 @@ if ENABLE_HTTP_API:
                     status_code=500
                 )
         
+        async def cache_stats_endpoint_wrapper(request):
+            """Wrapper for cache stats endpoint."""
+            try:
+                from src.api.endpoints import get_cache_stats
+                response = await get_cache_stats()
+                
+                return JSONResponse(content=response)
+                
+            except Exception as e:
+                return JSONResponse(
+                    content={
+                        "error": f"Cache stats failed: {str(e)}"
+                    },
+                    status_code=500
+                )
+        
+        async def cache_clear_endpoint_wrapper(request):
+            """Wrapper for cache clear endpoint."""
+            try:
+                from src.api.endpoints import clear_cache
+                response = await clear_cache()
+                
+                return JSONResponse(content=response)
+                
+            except Exception as e:
+                return JSONResponse(
+                    content={
+                        "error": f"Cache clear failed: {str(e)}"
+                    },
+                    status_code=500
+                )
+        
         # Add the HTTP API routes to the SSE app
         api_routes = [
             Route("/api/health", health_endpoint_wrapper, methods=["GET"]),
@@ -322,7 +354,14 @@ if ENABLE_HTTP_API:
             Route("/api/search", search_endpoint_wrapper, methods=["GET", "POST"]),
             Route("/api/code-examples", code_examples_endpoint_wrapper, methods=["GET"]),
             Route("/api/status", status_endpoint_wrapper, methods=["GET"]),
+            Route("/api/cache-stats", cache_stats_endpoint_wrapper, methods=["GET"]),
+            Route("/api/cache-clear", cache_clear_endpoint_wrapper, methods=["POST"]),
         ]
+        
+        # Add OpenAPI documentation routes
+        from src.api.openapi import get_documentation_routes
+        documentation_routes = get_documentation_routes()
+        api_routes.extend(documentation_routes)
         
         # Add routes to the SSE app
         for route in api_routes:
