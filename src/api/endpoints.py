@@ -13,6 +13,9 @@ import logging
 
 from .responses import APIResponse, HealthResponse, SourcesResponse, SearchResponse, SourceResponse, SourcesListResponse, SearchResultData
 
+# Import cache utilities
+from ..utils.cache import cached_health, cached_sources, cached_search, sources_cache, health_cache, search_cache
+
 # Configure logger for HTTP API
 logger = logging.getLogger("http_api")
 
@@ -32,6 +35,7 @@ from .responses import HealthData
 
 
 @router.get("/health", response_model=HealthResponse)
+@cached_health
 async def health_check(request: Request) -> HealthResponse:
     """
     Health check endpoint to verify server status and connectivity.
@@ -99,6 +103,7 @@ async def health_check(request: Request) -> HealthResponse:
 
 
 @router.get("/sources", response_model=SourcesListResponse)
+@cached_sources
 async def get_sources():
     """Get available sources from crawl database"""
     try:
@@ -127,6 +132,7 @@ async def get_sources():
 
 
 @router.get("/search", response_model=SearchResponse)
+@cached_search
 async def search_documents(
     request: Request,
     query: str = Query(..., description="Search query"),
@@ -259,6 +265,7 @@ async def search_documents(
 
 
 @router.post("/search", response_model=SearchResponse)
+@cached_search
 async def search_documents_post(
     request: Request,
     search_request: SearchRequest
@@ -386,6 +393,7 @@ async def search_documents_post(
 
 
 @router.get("/code-examples", response_model=SearchResponse)
+@cached_search
 async def search_code_examples(
     request: Request,
     query: str = Query(..., description="Code search query"),
@@ -536,6 +544,9 @@ async def get_api_status(request: Request) -> Dict[str, Any]:
     Returns:
         Dict containing API status, endpoints, and configuration
     """
+    # Import cache instances to get statistics
+    from ..utils.cache import sources_cache, health_cache, search_cache
+    
     return {
         "api_version": "1.0.0",
         "status": "operational",
@@ -544,10 +555,47 @@ async def get_api_status(request: Request) -> Dict[str, Any]:
             "/api/sources", 
             "/api/search",
             "/api/code-examples",
-            "/api/status"
+            "/api/status",
+            "/api/cache-stats",
+            "/api/cache-clear"
         ],
         "transport": "http",
         "cors_enabled": True
+    }
+
+
+@router.get("/cache-stats")
+async def get_cache_stats() -> Dict[str, Any]:
+    """
+    Get cache statistics for all cache instances.
+    
+    Returns:
+        Dict containing cache statistics
+    """
+    from ..utils.cache import sources_cache, health_cache, search_cache
+    
+    return {
+        "sources_cache": sources_cache.get_stats(),
+        "health_cache": health_cache.get_stats(),
+        "search_cache": search_cache.get_stats()
+    }
+
+
+@router.post("/cache-clear")
+async def clear_cache() -> Dict[str, Any]:
+    """
+    Clear all cache instances.
+    
+    Returns:
+        Dict confirming cache clearing
+    """
+    from ..utils.cache import invalidate_all_caches
+    
+    invalidate_all_caches()
+    
+    return {
+        "success": True,
+        "message": "All caches cleared successfully"
     }
 
 
